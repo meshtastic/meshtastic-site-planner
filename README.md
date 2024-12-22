@@ -1,5 +1,7 @@
 # Meshtastic Site Planner
 
+[![CLA assistant](https://cla-assistant.io/readme/badge/meshtastic/meshtastic-site-planner )](https://cla-assistant.io/meshtastic/meshtastic-site-planner )
+
 ## About
 
 To use this tool, go to the official version: https://site.meshtastic.org
@@ -49,6 +51,3 @@ docker-compose up --build
 ```
 
 For running a development server, use `pnpm run dev`.
-
-
-
