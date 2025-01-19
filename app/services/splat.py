@@ -211,7 +211,8 @@ class Splat:
                     "-db",
                     str(request.signal_threshold),
                     "-kml",
-                ]
+                    "-olditm"
+                ] # flag "olditm" uses the standard ITM model instead of ITWOM, which has produced unrealistic results.
                 logger.debug(f"Executing SPLAT! command: {' '.join(splat_command)}")
 
                 splat_result = subprocess.run(
@@ -773,24 +774,24 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     try:
         splat_service = Splat(
-            splat_path="splat",  # Replace with the actual SPLAT! binary path
+            splat_path="",  # Replace with the actual SPLAT! binary path
         )
 
         # Create a test coverage prediction request
         test_coverage_request = CoveragePredictionRequest(
-            lat=-37.8136,
-            lon=144.9631,
-            tx_height=5.0,
+            lat=51.4408448,
+            lon=-0.8994816,
+            tx_height=1.0,
             ground_dielectric=15.0,
             ground_conductivity=0.005,
             atmosphere_bending=301.0,
-            frequency_mhz=905.0,
+            frequency_mhz=868.0,
             radio_climate="continental_temperate",
             polarization="vertical",
-            situation_fraction=90.0,
-            time_fraction=90.0,
+            situation_fraction=95.0,
+            time_fraction=95.0,
             tx_power=30.0,
-            tx_gain=2.0,
+            tx_gain=1.0,
             system_loss=2.0,
             rx_height=1.0,
             radius=50000.0,
