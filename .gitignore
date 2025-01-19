@@ -4,6 +4,7 @@ __pycache__/
 .DS_Store
 .idea/
 *.tiff
+*.tif
 *.pyc
 log.txt
 *.log
@@ -40,3 +41,5 @@ dist-ssr
 *.sln
 *.sw?
 .vite
+app/ui/assets/*.css
+app/ui/assets/*.js
