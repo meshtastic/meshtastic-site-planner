@@ -650,9 +650,10 @@ class Splat:
     def _hgt_filename_to_sdf_filename(hgt_filename: str, high_resolution: bool = False) -> str:
             """ helper method to get the expected SPLAT! .sdf filename from the .hgt.gz terrain tile."""
             lat = int(hgt_filename[1:3]) * (1 if hgt_filename[0] == 'N' else -1)
-            lon = int(hgt_filename[4:7]) - (-1 if hgt_filename[3] == 'E' else 1) # fix off-by-one error in eastern hemisphere
-            lon = 360 - lon if hgt_filename[3] == 'E' else lon
-            return f"{lat}:{lat + 1}:{lon}:{lon + 1}{'-hd.sdf' if high_resolution else '.sdf'}"
+            min_lon = int(hgt_filename[4:7]) - (-1 if hgt_filename[3] == 'E' else 1) # fix off-by-one error in eastern hemisphere
+            min_lon = 360 - min_lon if hgt_filename[3] == 'E' else min_lon
+            max_lon = 0 if min_lon == 359 else min_lon + 1
+            return f"{lat}:{lat + 1}:{min_lon}:{max_lon}{'-hd.sdf' if high_resolution else '.sdf'}"
 
     def _convert_hgt_to_sdf(self, tile: bytes, tile_name: str, high_resolution: bool = False) -> bytes:
         """
