@@ -1,3 +1,6 @@
 [submodule "splat"]
 	path = splat
 	url = https://github.com/jmcmellen/splat
+[submodule "geoprop-py"]
+	path = geoprop-py
+	url = https://github.com/mrpatrick1991/geoprop-py
