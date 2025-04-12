@@ -26,7 +26,7 @@
     "@types/leaflet": "^1.9.16",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "~5.8.2",
-    "vite": "^6.2.5",
+    "vite": "^6.2.6",
     "vue-tsc": "^2.2.8"
   },
   "pnpm": {
