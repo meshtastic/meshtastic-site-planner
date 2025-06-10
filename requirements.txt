@@ -38,7 +38,7 @@ python-dateutil==2.9.0.post0
 PyYAML==6.0.2
 rasterio==1.4.2
 redis==5.2.0
-requests==2.32.3
+requests==2.32.4
 s3transfer==0.10.4
 scipy==1.14.1
 six==1.16.0
