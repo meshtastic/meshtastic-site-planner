@@ -12,7 +12,7 @@
     "@vueuse/core": "^12.4.0",
     "bootstrap": "^5.3.3",
     "georaster": "^1.6.0",
-    "georaster-layer-for-leaflet": "^3.10.0",
+    "georaster-layer-for-leaflet": "^4.1.1-0",
     "leaflet": "^1.9.4",
     "leaflet-easyprint": "^2.1.9",
     "leaflet.locatecontrol": "^0.82.0",
