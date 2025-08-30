@@ -10,15 +10,15 @@
   },
   "dependencies": {
     "@vueuse/core": "^12.8.2",
-    "bootstrap": "^5.3.7",
+    "bootstrap": "^5.3.8",
     "georaster": "^1.6.0",
-    "georaster-layer-for-leaflet": "4.1.1-0",
+    "georaster-layer-for-leaflet": "4.1.2",
     "leaflet": "^1.9.4",
     "leaflet-easyprint": "^2.1.9",
     "leaflet.locatecontrol": "^0.82.0",
     "pinia": "^2.3.1",
     "randanimal": "^1.0.4",
-    "vue": "^3.5.19",
+    "vue": "^3.5.20",
     "vue3-popper": "^1.5.0"
   },
   "devDependencies": {
