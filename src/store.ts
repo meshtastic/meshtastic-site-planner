@@ -89,7 +89,7 @@ const useStore = defineStore('store', {
         const rasterLayer = new GeoRasterLayer({
           georaster: {...site}.raster,
           opacity: 0.7,
-          noDataValue: 255,
+          pixelValuesToColorFn: (values: Number[]) =>  values[0] == site.raster.noDataValue ? null : site.raster.palette[values[0] as number],
           resolution: 256,
         });
         rasterLayer.addTo(this.map as L.Map);
