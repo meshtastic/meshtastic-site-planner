@@ -1,53 +1,69 @@
-# Meshtastic Site Planner
+# Meshtastic Link Planner 
 
-[![CLA assistant](https://cla-assistant.io/readme/badge/meshtastic/meshtastic-site-planner )](https://cla-assistant.io/meshtastic/meshtastic-site-planner )
+> [!WARNING]
+> This repository has been superseded by the Meshtastic Siteplanner (see https://github.com/meshtastic/meshtastic-site-planner). You can visit the hosted version at https://site.meshtastic.org/
 
 ## About
 
-To use this tool, go to the official version: https://site.meshtastic.org
+This is a web utility to predict the range of a Meshtastic radio (see http://meshtastic.org). It generates a map of where your Meshtastic radio can be received based on your location and antenna. The prediction accounts for terrain and calculates the expected RSSI (received signal strength indication) using the ITM / Longley-Rice model. The model parameters have been carefully chosen based on experimental data and practical experience to produce results which are accurate for Meshtastic devices. The transmit power and frequency are based on the selected LoRa region. 
 
-This is an online utility for predicting the range of a Meshtastic radio. It creates radio coverage maps using the ITM/Longley-Rice model and SPLAT! software by John A. Magliacane, KD2BD (https://www.qsl.net/kd2bd/splat.html). The maps are used for planning repeater deployments and for estimating the coverage provided by an existing mesh network. The default parameters have been chosen based on experimental data and practical experience to produce results that are accurate for Meshtastic devices. Model parameters are adjustable, so this tool can also be used for amateur radio projects using different frequencies and higher transmit powers.
+## Assumptions
 
-The terrain elevation tiles are streamed from AWS Open Data (https://registry.opendata.aws/terrain-tiles/), which are based on the NASA SRTM (Shuttle Radar Topography) dataset (https://www.earthdata.nasa.gov/data/instruments/srtm).
+This tool makes several assumptions:
 
+* Receivers are 1 meter above the ground and have an antenna gain of 1.0 dB.
+* There are no signal losses caused by obstructions other than terrain. This includes trees, buildings, and glass windows.
+* Antennas are isotropic and vertically polarized.
+* Negligible signal losses are caused by coaxial cable.
+* Radios are transmitting the maximum legal power permitted in their region.
+* The sensitivity of the receiver in all cases is approximately -130 dBm.
+* The terrain model is accurate to 30 meters.
+* In the hosted version, signals do not travel farther than 100 kilometers.
 
-## Usage
+These assumptions have been tested and found to be practical in typical usage scenarios. Please use discretion and verify the predictions this tool makes.
 
-The minimal steps for creating a Meshtastic coverage prediction are:
-
-1. Go to the [official version](https://site.meshtastic.org) or run a development copy and open the tool in a web browser. 
-2. In `Site Parameters > Site / Transmitter`, enter a name for the site, the geographic coordinates, and the antenna height above ground. Refer to the Meshtastic regional parameters (https://meshtastic.org/docs/configuration/region-by-country/) and input the transmit power, frequency, and antenna gain for your device. 
-3. In `Site Parameters > Receiver`, enter the receiver sensitivity (`-130 dBm` for the default `LongFast` channel), the receiver height, and the receiver antenna gain.
-4. In `Site Parameters > Receiver`, enter the maximum range for the simulation in kilometers. Selecting long ranges (> 50 kilometers) will result in longer computation times.
-5. Press "Run Simulation." The coverage map will be displayed when the calculation completes. 
-
-Multiple radio sites can be added to the simulation by repeating these steps. For a detailed explanation of the other adjustable parameters, refer to:
-
-## Model and Assumptions
-
-This tool runs a physics simulation that depends on several assumptions. The most important ones are:
-
-1. The SRTM terrain model is accurate to 90 meters.
-2. There are no obstructions besides terrain that attenuate radio signals. These include trees, artificial structures such as buildings, or transient effects like precipitation.
-3. Antennas are isotropic in the horizontal plane (we do not account for directional antennas). 
-4. Reflections from the upper atmosphere (skywave propagation) are negligible. This is less accurate when the signal frequency is low (less than approximately 50 MHz). 
-
-A detailed description of the model parameters and their recommended values is available:
 
 ## Building
 
+**Warning: SRTM dataset download instructions out of date.**
+
+The below S3 bucket does not contain the tiles you need. An alternative solution is being developed currrently.
+
 Requirements:
 
-- Docker and Docker Compose
-- Git
-- pnpm
+* 3 arcsecond resolution NASA SRTM elevation dataset in `.hgt` format, available from https://registry.opendata.aws/terrain-tiles/
+* docker
+* git
 
-```bash
-git clone --recurse-submodules https://github.com/meshtastic/meshtastic-site-planner && cd meshtastic-site-planner
+copy the `.hgt` files to a convenient folder, `my_srtm_data`.
 
-pnpm i && pnpm run build
+```
+git clone --recurse-submodules https://github.com/mrpatrick1991/meshtastic_linkplanner/ && cd meshtastic_linkplanner
 
-docker-compose up --build
+docker build -t linkplanner .
+
+docker run --env h3_res=8 \
+           --env max_distance_km=100 \
+           --env tile_dir=/app/srtm_tiles \
+           -v my_srtm_data:/app/srtm_tiles \
+           -p 8080:8080 linkplanner
 ```
 
-For running a development server, use `pnpm run dev`.
+Note: It is recommended to leave the `max_distance` at 100 kilometers and `h3_res` as 8 so that the computation is fast.
+
+## Disclaimer
+
+Follow local radio communication laws. Some Meshtastic projects may require an amateur radio license. 
+
+## References
+
+* geoprop-py: https://github.com/JayKickliter/geoprop-py
+* LeafletJS: https://leafletjs.com
+* ITM / Longley-Rice model: https://its.ntia.gov/software/itm
+* Meshtastic: https://meshtastic.org
+
+## License 
+This program is free and open-source software licensed under the MIT License. Please see the LICENSE file for details.
+
+That means you have the right to study, change, and distribute the software and source code to anyone and for any purpose. You deserve these rights.
+

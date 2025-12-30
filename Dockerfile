@@ -1,53 +1,35 @@
-FROM debian:stable-slim AS splat
-RUN apt update && apt install -y cmake make clang zlib1g-dev libbz2-dev git && rm -rf /var/lib/apt/lists/*
+FROM python:3.11-slim
 
-COPY splat/ /splat/
-
-WORKDIR /splat/build/
-RUN cmake .. && make
-RUN ln -sf splat splat-hd
-
-WORKDIR /splat/utils/build/
-RUN cmake .. && make
-
-FROM node:20-slim AS ui
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-
-COPY package.json pnpm-lock.yaml /app/
-WORKDIR /app
-
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-COPY index.html tsconfig*json vite.config.ts /app/
-COPY src/ /app/src
-COPY public/ /app/public
-
-RUN pnpm run build
-
-FROM python:3.12-slim
 ENV HOME="/root"
-ENV TERM=xterm
 
-RUN apt update && apt install -y libexpat-dev && rm -rf /var/lib/apt/lists/*
-
-# Set the working directory
 WORKDIR /app
+COPY . .
 
-# Copy requirements first to leverage Docker caching
+# rust and cargo for maturin
+RUN apt-get update && \
+    apt-get install -y curl build-essential && \
+    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
+    echo '. "$HOME/.cargo/env"' >> ~/.bashrc && \
+    . "$HOME/.cargo/env" && \
+    apt-get clean
+
+# to make cargo happy
+ENV PATH="$HOME/.cargo/bin:$PATH"
+
+# finally get maturin installed
+RUN pip install --upgrade pip
+RUN pip install maturin
+
+# build geoprop-py using maturin
+WORKDIR /app/geoprop
+RUN maturin build
+RUN pip install target/wheels/geoprop-*-manylinux*.whl
+
+# install the other python dependencies
+WORKDIR /app
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application files
-COPY app/ app/
-
-# Copy UI build from the previous stage
-COPY --from=ui /app/app/ui/ app/ui/
-
-# Copy SPLAT build from the previous stage
-COPY --from=splat /splat/build/splat /splat/build/splat-hd /splat/utils/build/srtm2sdf* splat/
-
-# Expose the application port
 EXPOSE 8080
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+

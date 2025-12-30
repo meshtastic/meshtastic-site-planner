@@ -1,3 +1,6 @@
 [submodule "splat"]
 	path = splat
 	url = https://github.com/hoche/splat
+[submodule "geoprop-py"]
+	path = geoprop-py
+	url = https://github.com/meshtastic/geoprop-py

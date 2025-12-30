@@ -43,3 +43,4 @@ dist-ssr
 .vite
 app/ui/assets/*.css
 app/ui/assets/*.js
+.aider*
