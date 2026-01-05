@@ -3,11 +3,21 @@ Signal Propagation Prediction API
 
 FastAPI application for RF propagation modeling using ITM (Irregular Terrain Model)
 with SRTM terrain data. Wraps geoprop-py (https://github.com/JayKickliter/geoprop-py),
-a Rust implementation based on NTIA's ITM reference.
+a Rust implementation based on NTIA's ITM reference. This API is intended for use 
+with Meshtastic LoRa radios to identify optimal transmitter locations and coverage areas, 
+as well as to check link budgets between two points.
+
+Default parameters for the ITM model are chosen based on common use cases for LoRa
+deployments, but can be overrridden via the API arguments. See the ITM technical report 
+for more details on the model and its parameters.
 
 Endpoints:
     POST /area - Predict path loss over a geographic area using H3 hexagons
     POST /p2p - Predict path loss between two points
+
+References:
+    ITM Technical Report: https://its.ntia.gov/software/itm
+    NTIA C++ Implementation: https://github.com/NTIA/itm
 """
 
 from fastapi import FastAPI, HTTPException
