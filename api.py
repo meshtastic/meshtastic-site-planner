@@ -90,14 +90,14 @@ class AreaPredictRequest(BaseModel):
     expected input payload for the /area endpoint.
     """
 
-    lat: float = Field(..., ge=-90, le=90, description="transmitter latitude")
-    lon: float = Field(..., ge=-180, le=180, description="transmitter longitude")
+    lat: float = Field(..., gt=-90, lt=90, description="transmitter latitude")
+    lon: float = Field(..., gt=-180, lt=180, description="transmitter longitude")
     txh: float = Field(1.0, gt=0, description="transmitter height in meters")
     rxh: float = Field(1.0, gt=0, description="receiver height in meters")
-    tx_gain: float = Field(1.0, ge=0, description="transmitter gain in dB")
-    rx_gain: float = Field(1.0, ge=0, description="receiver gain in dB")
+    tx_gain: float = Field(1.0, ge=1.0, description="transmitter gain in dB")
+    rx_gain: float = Field(1.0, ge=1.0, description="receiver gain in dB")
     resolution: int = Field(8, ge=7, le=12, description="simulation h3 cell resolution")
-    frequency: float = Field(..., gt=0, description="signal frequency in MHz")
+    frequency: float = Field(..., gt=50, description="signal frequency in MHz") # below ~50MHz non-LOS propagation dominates, model is not accurate. 
 
     # Optional ITM parameters
     climate: Optional[
@@ -128,13 +128,15 @@ class P2PPredictRequest(BaseModel):
     Expected input payload for the /p2p endpoint.
     """
 
-    tx_lat: float = Field(..., ge=-90, le=90, description="transmitter latitude")
-    tx_lon: float = Field(..., ge=-180, le=180, description="transmitter longitude")
+    tx_lat: float = Field(..., gt=-90, lt=90, description="transmitter latitude")
+    tx_lon: float = Field(..., gt=-180, lt=180, description="transmitter longitude")
     txh: float = Field(1.0, gt=0, description="transmitter height in meters")
-    rx_lat: float = Field(..., ge=-90, le=90, description="receiver latitude")
-    rx_lon: float = Field(..., ge=-180, le=180, description="receiver longitude")
+    rx_lat: float = Field(..., gt=-90, lt=90, description="receiver latitude")
+    rx_lon: float = Field(..., gt=-180, lt=180, description="receiver longitude")
     rxh: float = Field(1.0, gt=0, description="receiver height in meters")
-    frequency: float = Field(..., gt=0, description="signal frequency in MHz")
+    tx_gain: float = Field(1.0, ge=1.0, description="transmitter gain in dB")
+    rx_gain: float = Field(1.0, ge=0, description="receiver gain in dB")
+    frequency: float = Field(..., gt=50, description="signal frequency in MHz") # below ~50MHz non-LOS propagation dominates, model is not accurate. 
 
     # Optional ITM parameters
     climate: Optional[
@@ -302,6 +304,8 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
         rx_lat: Receiver latitude (-90 to 90)
         rx_lon: Receiver longitude (-180 to 180)
         rxh: Receiver height in meters (default: 1.0)
+        tx_gain: Transmitter gain in dB (default: 1.0)
+        rx_gain: Receiver gain in dB (default: 1.0)
         frequency: Signal frequency in MHz (required)
         climate: Climate type (optional, default: continental_temperate)
         n0: Refractivity (optional, default: 301.0)
@@ -332,6 +336,8 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
             "rx_lat": 37.8044,
             "rx_lon": -122.2712,
             "rxh": 2.0,
+            "tx_gain": 2.0,
+            "rx_gain": 2.0,
             "frequency": 915.0,
             "climate": "continental_temperate",
             "pol": "vertical"
