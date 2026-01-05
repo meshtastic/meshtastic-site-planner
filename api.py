@@ -304,7 +304,11 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
         situation: Situation variability % (optional, default: 95.0)
 
     Returns:
-        JSON object with path loss in dB.
+        JSON object with path loss, distance, and terrain profile data:
+        - loss_db: Path loss in dB
+        - distance_m: Total distance between points in meters
+        - terrain_profile_m: Array of terrain elevations in meters
+        - distances_m: Array of cumulative distances in meters
 
     Raises:
         HTTPException: 400 if model calculation fails.
@@ -325,7 +329,10 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
 
         Response:
         {
-            "loss_db": 85.2
+            "loss_db": 85.2,
+            "distance_m": 12500.0,
+            "terrain_profile_m": [10.0, 15.2, 20.1, ...],
+            "distances_m": [0.0, 90.0, 180.0, ...]
         }
     """
 
@@ -368,6 +375,11 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
         profile = Profile(tiles, start, end)
 
         loss_db = itm.p2p(profile, payload.frequency * 1e6)
+        
+        # Get terrain profile and distance data
+        distances_m = list(profile.distances())
+        elevation_m = list(profile.elevation())
+        distance_m = distances_m[-1] if distances_m else 0.0
     except ValueError as e:
         logging.error(f"Model calculation error: {str(e)}")
         raise HTTPException(
@@ -377,4 +389,9 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
     duration = end_time - start_time
     logging.info(f"ITM p2p calculation completed successfully in {duration:.2f} seconds.")
 
-    return JSONResponse(content={"loss_db": loss_db})
+    return JSONResponse(content={
+        "loss_db": loss_db,
+        "distance_m": distance_m,
+        "terrain_profile_m": elevation_m,
+        "distances_m": distances_m,
+    })

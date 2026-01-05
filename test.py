@@ -50,6 +50,15 @@ def test_p2p():
     data = response.json()
     assert "loss_db" in data
     assert isinstance(data["loss_db"], (int, float))
+    assert "distance_m" in data
+    assert isinstance(data["distance_m"], (int, float))
+    assert data["distance_m"] > 0
+    assert "terrain_profile_m" in data
+    assert isinstance(data["terrain_profile_m"], list)
+    assert len(data["terrain_profile_m"]) > 0
+    assert "distances_m" in data
+    assert isinstance(data["distances_m"], list)
+    assert len(data["distances_m"]) == len(data["terrain_profile_m"])
 
 
 def test_p2p_invalid_climate():
