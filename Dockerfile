@@ -21,7 +21,7 @@ RUN pip install --upgrade pip
 RUN pip install maturin
 
 # build geoprop-py using maturin
-WORKDIR /app/geoprop
+WORKDIR /app/geoprop-py
 RUN maturin build
 RUN pip install target/wheels/geoprop-*-manylinux*.whl
 
@@ -31,5 +31,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8080
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
-
+CMD ["uvicorn", "api:api", "--host", "0.0.0.0", "--port", "8080"]

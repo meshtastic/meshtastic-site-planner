@@ -1,7 +1,0 @@
-docker-compose.yml
-Dockerfile
-.dockerignore
-.tile_cache/
-splat/build/
-splat/utils/build
-node_modules/
