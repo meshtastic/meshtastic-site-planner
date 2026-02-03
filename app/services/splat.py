@@ -197,7 +197,6 @@ class Splat:
                     "tx.qth",
                     "-L",
                     str(request.rx_height),
-                    "-metric",
                     "-R",
                     str(request.radius / 1000.0),
                     "-sc",
@@ -206,11 +205,12 @@ class Splat:
                     "-ngs",
                     "-N",
                     "-o",
-                    "output.ppm",
+                    "output",
                     "-dbm",
                     "-db",
                     str(request.signal_threshold),
                     "-kml",
+                    "-ppm",
                     "-olditm"
                 ] # flag "olditm" uses the standard ITM model instead of ITWOM, which has produced unrealistic results.
                 logger.debug(f"Executing SPLAT! command: {' '.join(splat_command)}")
@@ -348,7 +348,7 @@ class Splat:
                 f"{name}\n"
                 f"{latitude:.6f}\n"
                 f"{abs(longitude) if longitude < 0 else 360 - longitude:.6f}\n"  # SPLAT! expects west longitude as a positive number.
-                f"{elevation:.2f}\n"
+                f"{elevation:.2f}m\n"
             )
             logger.debug(f"Generated .qth file contents:\n{contents}")
             return contents.encode('utf-8')  # Return as bytes
@@ -653,7 +653,7 @@ class Splat:
             min_lon = int(hgt_filename[4:7]) - (-1 if hgt_filename[3] == 'E' else 1) # fix off-by-one error in eastern hemisphere
             min_lon = 360 - min_lon if hgt_filename[3] == 'E' else min_lon
             max_lon = 0 if min_lon == 359 else min_lon + 1
-            return f"{lat}:{lat + 1}:{min_lon}:{max_lon}{'-hd.sdf' if high_resolution else '.sdf'}"
+            return f"{lat}_{lat + 1}_{min_lon}_{max_lon}{'-hd.sdf' if high_resolution else '.sdf'}"
 
     def _convert_hgt_to_sdf(self, tile: bytes, tile_name: str, high_resolution: bool = False) -> bytes:
         """
