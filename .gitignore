@@ -8,3 +8,8 @@ __pycache__/
 .vscode/*
 !.vscode/extensions.json
 .env
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+*.whl

@@ -5,15 +5,17 @@ FastAPI application for RF propagation modeling using ITM (Irregular Terrain Mod
 with SRTM terrain data. Wraps geoprop-py (https://github.com/JayKickliter/geoprop-py),
 a Rust implementation based on NTIA's ITM reference. This API is intended for use 
 with Meshtastic LoRa radios to identify optimal transmitter locations and coverage areas, 
-as well as to check link budgets between two points.
+as well as to compute link budgets between specific transmitter and receiver locations.
 
 Default parameters for the ITM model are chosen based on common use cases for LoRa
-deployments, but can be overrridden via the API arguments. See the ITM technical report 
+deployments, but can be overridden via the API arguments. See the ITM technical report 
 for more details on the model and its parameters.
 
 Endpoints:
-    POST /area - Predict path loss over a geographic area using H3 hexagons
-    POST /p2p - Predict path loss between two points
+    POST /coverage/h3 - Predict coverage as H3 hexagon GeoJSON
+    POST /coverage/grid - Predict coverage as centroid point GeoJSON
+    POST /coverage/contour - Predict coverage as contour band GeoJSON
+    POST /link - Predict path loss between two specific points
 
 References:
     ITM Technical Report: https://its.ntia.gov/software/itm
@@ -21,12 +23,19 @@ References:
 """
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from geoprop import Tiles, Itm, Point, Profile, Climate, Polarization, ModeVariability
 from typing import Literal, Optional
 from dotenv import load_dotenv
+from shapely.geometry import Polygon as ShapelyPolygon, MultiPolygon as ShapelyMultiPolygon
+from shapely.ops import unary_union
+from scipy.interpolate import griddata
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
 import logging
 import geojson
 import h3
@@ -85,9 +94,9 @@ tiles = Tiles(config["tile_dir"])
 logging.info(f'SRTM tiles loaded: {config["tile_dir"]}')
 
 
-class AreaPredictRequest(BaseModel):
+class CoveragePredictRequest(BaseModel):
     """
-    expected input payload for the /area endpoint.
+    Expected input payload for the /coverage/h3 and /coverage/contour endpoints.
     """
 
     lat: float = Field(..., gt=-90, lt=90, description="transmitter latitude")
@@ -123,9 +132,9 @@ class AreaPredictRequest(BaseModel):
     situation: Optional[float] = None
 
 
-class P2PPredictRequest(BaseModel):
+class LinkRequest(BaseModel):
     """
-    Expected input payload for the /p2p endpoint.
+    Expected input payload for the /link endpoint.
     """
 
     tx_lat: float = Field(..., gt=-90, lt=90, description="transmitter latitude")
@@ -159,70 +168,20 @@ class P2PPredictRequest(BaseModel):
     location: Optional[float] = None
     situation: Optional[float] = None
 
-
-@api.post("/area")
-async def predict(payload: AreaPredictRequest) -> JSONResponse:
+def run_coverage_prediction(payload: CoveragePredictRequest) -> dict[str, float]:
     """
-    Predicts signal coverage using the ITM model.
+    Run ITM area coverage prediction.
 
     Args:
-        lat: Transmitter latitude (-90 to 90)
-        lon: Transmitter longitude (-180 to 180)
-        txh: Transmitter height in meters (default: 1.0)
-        rxh: Receiver height in meters (default: 1.0)
-        tx_gain: Transmitter gain in dB (default: 1.0)
-        rx_gain: Receiver gain in dB (default: 1.0)
-        resolution: H3 cell resolution (7-12, default: 8)
-        frequency: Signal frequency in MHz (required)
-        climate: Climate type (optional, default: continental_temperate)
-        n0: Refractivity (optional, default: 301.0)
-        pol: Polarization horizontal/vertical (optional, default: vertical)
-        epsilon: Relative permittivity (optional, default: 15.0)
-        sigma: Conductivity (optional, default: 0.005)
-        mdvar: Mode variability (optional, default: mobile)
-        time: Time variability % (optional, default: 95.0)
-        location: Location variability % (optional, default: 95.0)
-        situation: Situation variability % (optional, default: 95.0)
+        payload: Validated area prediction request.
 
     Returns:
-        GeoJSON FeatureCollection with H3 hexagons containing path loss predictions.
-        Each feature has properties: {"loss_db": float}
+        Dict mapping H3 hex index to path loss in dB.
+        Example: {"882a100d65fffff": 85.2, "882a100d67fffff": 92.1}
 
     Raises:
         HTTPException: 400 if model calculation fails.
-
-    Example:
-        Request:
-        {
-            "lat": 37.7749,
-            "lon": -122.4194,
-            "frequency": 915.0,
-            "txh": 10.0,
-            "rxh": 2.0,
-            "resolution": 8,
-            "climate": "continental_temperate",
-            "pol": "vertical"
-        }
-
-        Response:
-        {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Polygon",
-                        "coordinates": [[[-122.42, 37.77], ...]]
-                    },
-                    "properties": {"loss_db": 85.2}
-                },
-                ...
-            ]
-        }
     """
-
-    logging.info(f"Received prediction request: {payload.model_dump()}")
-
     climate_map = {
         "equatorial": Climate.Equatorial,
         "continental_subtropical": Climate.ContinentalSubtropical,
@@ -256,7 +215,7 @@ async def predict(payload: AreaPredictRequest) -> JSONResponse:
         )
 
         center = Point(payload.lat, payload.lon, payload.txh)
-        prediction_h3 = itm.coverage(
+        raw_results = itm.coverage(
             center,
             payload.resolution,
             payload.frequency * 1e6,
@@ -269,17 +228,137 @@ async def predict(payload: AreaPredictRequest) -> JSONResponse:
         raise HTTPException(
             status_code=400, detail=f"Error generating model prediction: {str(e)}"
         )
-    end_time = time.time()
-    duration = end_time - start_time
-    logging.info(
-        f"ITM model calculation completed successfully in {duration:.2f} seconds."
+
+    duration = time.time() - start_time
+    logging.info(f"ITM model calculation completed in {duration:.2f} seconds.")
+
+    # Convert list of (cell_id: u64, elevation: f32, loss_db: f64) to {h3_hex: loss_db}
+    return {hex(cell_id): loss_db for cell_id, _elev, loss_db in raw_results}
+
+
+def coverage_to_contour_geojson(coverage: dict[str, float], levels: list[float] | None = None) -> dict:
+    """
+    Convert coverage dict to contour band GeoJSON.
+
+    Args:
+        coverage: Dict mapping H3 hex index to path loss in dB.
+        levels: Contour break points in dB. Defaults to 10 dB steps spanning the data.
+
+    Returns:
+        GeoJSON FeatureCollection with one MultiPolygon per contour band.
+        Each feature has properties: {"min_db": float, "max_db": float}
+    """
+    lats, lons, values = [], [], []
+    for h3_index, loss_db in coverage.items():
+        cell_lat, cell_lon = h3.cell_to_latlng(h3_index)
+        lats.append(cell_lat)
+        lons.append(cell_lon)
+        values.append(loss_db)
+
+    lats = np.array(lats)
+    lons = np.array(lons)
+    values = np.array(values)
+
+    if levels is None:
+        vmin = int(np.floor(values.min() / 10) * 10)
+        vmax = int(np.ceil(values.max() / 10) * 10)
+        levels = list(range(vmin, vmax + 10, 10))
+
+    # Interpolate H3 cell centers onto a regular grid
+    grid_res = 200
+    lon_grid = np.linspace(lons.min(), lons.max(), grid_res)
+    lat_grid = np.linspace(lats.min(), lats.max(), grid_res)
+    lon_mesh, lat_mesh = np.meshgrid(lon_grid, lat_grid)
+
+    grid_values = griddata(
+        (lons, lats), values, (lon_mesh, lat_mesh), method="cubic", fill_value=np.nan
     )
 
-    features = []
-    for row in prediction_h3:
-        hex_boundary = h3.cell_to_boundary(hex(row[0]))
-        loss_db = row[2]
+    # Generate filled contours
+    fig, ax = plt.subplots()
+    cs = ax.contourf(lon_mesh, lat_mesh, grid_values, levels=levels)
+    plt.close(fig)
 
+    # Convert contour segments to GeoJSON MultiPolygons.
+    # cs.allsegs[i] is a list of Nx2 arrays for contour level i.
+    features = []
+    for i, segs in enumerate(cs.allsegs):
+        if not segs:
+            continue
+
+        polygons = []
+        for seg in segs:
+            if len(seg) < 4:
+                continue
+            coords = [(float(x), float(y)) for x, y in seg]
+            if coords[0] != coords[-1]:
+                coords.append(coords[0])
+            try:
+                poly = ShapelyPolygon(coords)
+                if poly.is_valid and not poly.is_empty:
+                    polygons.append(poly)
+            except Exception:
+                continue
+
+        if not polygons:
+            continue
+
+        # Sort by area descending so smaller contained polygons become holes
+        polygons.sort(key=lambda p: p.area, reverse=True)
+
+        result_polys = []
+        used = set()
+        for j, outer in enumerate(polygons):
+            if j in used:
+                continue
+            holes = []
+            for k, inner in enumerate(polygons):
+                if k <= j or k in used:
+                    continue
+                if outer.contains(inner):
+                    holes.append(inner.exterior.coords)
+                    used.add(k)
+            result_polys.append(ShapelyPolygon(outer.exterior.coords, holes))
+
+        merged = unary_union(result_polys)
+        if isinstance(merged, ShapelyPolygon):
+            merged = ShapelyMultiPolygon([merged])
+
+        multi_coords = []
+        for poly in merged.geoms:
+            rings = [list(poly.exterior.coords)]
+            rings.extend(list(hole.coords) for hole in poly.interiors)
+            multi_coords.append(rings)
+
+        features.append(
+            geojson.Feature(
+                geometry=geojson.MultiPolygon(multi_coords),
+                properties={
+                    "min_db": float(levels[i]),
+                    "max_db": float(levels[i + 1]),
+                },
+            )
+        )
+
+    return geojson.FeatureCollection(features)
+
+
+@api.post("/coverage/h3")
+async def predict_coverage_h3(payload: CoveragePredictRequest) -> JSONResponse:
+    """
+    Predict signal coverage as H3 hexagons.
+
+    Returns:
+        GeoJSON FeatureCollection where each Feature is an H3 cell polygon
+        with property: {"loss_db": float}
+    """
+    logging.info(f"Received /coverage/h3 request: {payload.model_dump()}")
+
+    coverage = run_coverage_prediction(payload)
+
+    features = []
+    for h3_index, loss_db in coverage.items():
+        hex_boundary = h3.cell_to_boundary(h3_index)
         features.append(
             geojson.Feature(
                 geometry=geojson.Polygon([hex_boundary]),
@@ -287,13 +366,52 @@ async def predict(payload: AreaPredictRequest) -> JSONResponse:
             )
         )
 
-    feature_collection = geojson.FeatureCollection(features)
-
-    return JSONResponse(content=feature_collection)
+    return JSONResponse(content=geojson.FeatureCollection(features))
 
 
-@api.post("/p2p")
-async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
+@api.post("/coverage/grid")
+async def predict_coverage_grid(payload: CoveragePredictRequest) -> JSONResponse:
+    """
+    Predict signal coverage as a grid of points at H3 cell centroids.
+
+    Returns:
+        GeoJSON FeatureCollection where each Feature is a Point at
+        the H3 cell centroid with property: {"loss_db": float}
+    """
+    logging.info(f"Received /coverage/grid request: {payload.model_dump()}")
+
+    coverage = run_coverage_prediction(payload)
+
+    features = []
+    for h3_index, loss_db in coverage.items():
+        lat, lon = h3.cell_to_latlng(h3_index)
+        features.append(
+            geojson.Feature(
+                geometry=geojson.Point((lon, lat)),
+                properties={"loss_db": loss_db},
+            )
+        )
+
+    return JSONResponse(content=geojson.FeatureCollection(features))
+
+
+@api.post("/coverage/contour")
+async def predict_coverage_contour(payload: CoveragePredictRequest) -> JSONResponse:
+    """
+    Predict signal coverage as contour bands.
+
+    Returns:
+        GeoJSON FeatureCollection where each Feature is a contour band MultiPolygon
+        with properties: {"min_db": float, "max_db": float}
+    """
+    logging.info(f"Received /coverage/contour request: {payload.model_dump()}")
+
+    coverage = run_coverage_prediction(payload)
+    return JSONResponse(content=coverage_to_contour_geojson(coverage))
+
+
+@api.post("/link")
+async def link(payload: LinkRequest) -> JSONResponse:
     """
     Predicts path loss between two points using the ITM model.
 
@@ -326,33 +444,9 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
 
     Raises:
         HTTPException: 400 if model calculation fails.
-
-    Example:
-        Request:
-        {
-            "tx_lat": 37.7749,
-            "tx_lon": -122.4194,
-            "txh": 10.0,
-            "rx_lat": 37.8044,
-            "rx_lon": -122.2712,
-            "rxh": 2.0,
-            "tx_gain": 2.0,
-            "rx_gain": 2.0,
-            "frequency": 915.0,
-            "climate": "continental_temperate",
-            "pol": "vertical"
-        }
-
-        Response:
-        {
-            "loss_db": 85.2,
-            "distance_m": 12500.0,
-            "terrain_profile_m": [10.0, 15.2, 20.1, ...],
-            "distances_m": [0.0, 90.0, 180.0, ...]
-        }
     """
 
-    logging.info(f"Received p2p prediction request: {payload.model_dump()}")
+    logging.info(f"Received /link request: {payload.model_dump()}")
 
     climate_map = {
         "equatorial": Climate.Equatorial,
@@ -403,7 +497,7 @@ async def predict_p2p(payload: P2PPredictRequest) -> JSONResponse:
         )
     end_time = time.time()
     duration = end_time - start_time
-    logging.info(f"ITM p2p calculation completed successfully in {duration:.2f} seconds.")
+    logging.info(f"ITM link calculation completed in {duration:.2f} seconds.")
 
     return JSONResponse(content={
         "loss_db": loss_db,
