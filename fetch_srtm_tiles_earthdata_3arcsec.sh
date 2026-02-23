@@ -71,6 +71,11 @@ fetch_urls() {
         stripped_query_params="${filename%%\?*}"
 
         curl -f -b "$cookiejar" -c "$cookiejar" -L --netrc-file "$netrc" -g -o $stripped_query_params -- $line && echo || exit_with_error "Command failed with error. Please retrieve the data manually."
+        unzip -o "$stripped_query_params" -d . && rm -f "$stripped_query_params"
+        # Rename from e.g. N00E109.SRTMGL3.hgt to N00E109.hgt
+        for f in *.SRTMGL3.hgt; do
+          [ -e "$f" ] && mv "$f" "${f%.SRTMGL3.hgt}.hgt"
+        done
       done;
   elif command -v wget >/dev/null 2>&1; then
       # We can't use wget to poke provider server to get info whether or not URS was integrated without download at least one of the files.
@@ -87,6 +92,11 @@ fetch_urls() {
         stripped_query_params="${filename%%\?*}"
 
         wget --load-cookies "$cookiejar" --save-cookies "$cookiejar" --output-document $stripped_query_params --keep-session-cookies -- $line && echo || exit_with_error "Command failed with error. Please retrieve the data manually."
+        unzip -o "$stripped_query_params" -d . && rm -f "$stripped_query_params"
+        # Rename from e.g. N00E109.SRTMGL3.hgt to N00E109.hgt
+        for f in *.SRTMGL3.hgt; do
+          [ -e "$f" ] && mv "$f" "${f%.SRTMGL3.hgt}.hgt"
+        done
       done;
   else
       exit_with_error "Error: Could not find a command-line downloader.  Please install curl or wget"
