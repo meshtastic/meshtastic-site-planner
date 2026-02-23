@@ -13,3 +13,6 @@ __pycache__/
 dist/
 build/
 *.whl
+.tiles/
+.vscode/
+.python-version
