@@ -2,6 +2,8 @@
 
 A web tool for predicting [Meshtastic](https://meshtastic.org) radio coverage. Given a location and antenna configuration, it generates an RF coverage map using the ITM (Longley-Rice) propagation model with terrain data.
 
+There is a hosted copy running at https://site.meshtastic.org
+
 ## Prerequisites
 
 - Docker & Docker Compose
