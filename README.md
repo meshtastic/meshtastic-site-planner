@@ -1,39 +1,40 @@
-# Meshtastic Site Planner 
+# Meshtastic Site Planner
 
-## About
+A web tool for predicting [Meshtastic](https://meshtastic.org) radio coverage. Given a location and antenna configuration, it generates an RF coverage map using the ITM (Longley-Rice) propagation model with terrain data.
 
-This is a web utility to predict the range of a Meshtastic radio (see http://meshtastic.org). It generates a map of where your Meshtastic radio can be received based on your location and antenna. The prediction accounts for terrain and calculates the expected RSSI (received signal strength indication) using the ITM / Longley-Rice model. 
+## Prerequisites
 
-## Building
+- Docker & Docker Compose
+- Git
+- 3 arc-second NASA SRTM elevation tiles (`.hgt` format) — available from [Hugging Face](https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global) (17.7 GB compressed, ~75.5 GB uncompressed)
 
-Requirements:
+## Setup
 
-* 3 arcsecond resolution NASA SRTM elevation dataset in `.hgt` format, available from https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global 
-* docker
-* git
+**1. Download terrain tiles:**
 
-Copy the terrain tiles (17.7 GB download, 75.48 GB uncompressed) to a convenient folder by running:
-
-```mkdir -p tiles && curl -L https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global/resolve/main/srtm.tar.gz | tar xzf - -C tiles/ --strip-components=2```
-
-Clone the repository:
-
-```git clone --recurse-submodules https://github.com/mrpatrick1991/meshtastic_linkplanner/ && cd meshtastic_siteplanner```
-
-Copy `.env.example` to `.env`, change `tile_dir` to point to the tile folder:
-
-```cp .env.example .env```
-
-Build using docker-compose:
-
+```sh
+mkdir -p tiles && curl -L https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global/resolve/main/srtm.tar.gz | tar xzf - -C tiles/ --strip-components=2
 ```
+
+**2. Clone the repository:**
+
+```sh
+git clone --recurse-submodules https://github.com/mrpatrick1991/meshtastic_linkplanner/ && cd meshtastic_linkplanner
+```
+
+**3. Configure environment:**
+
+Copy `.env.example` to `.env` and set `tile_dir` to the path of your `tiles/` folder.
+
+**4. Build and run:**
+
+```sh
 docker-compose up --build
 ```
 
-
 ## References
 
-* geoprop-py: https://github.com/JayKickliter/geoprop-py
-* LeafletJS: https://leafletjs.com
-* ITM / Longley-Rice model: https://its.ntia.gov/software/itm
-* Meshtastic: https://meshtastic.org
+- [geoprop-py](https://github.com/JayKickliter/geoprop-py)
+- [Leaflet](https://leafletjs.com)
+- [ITM / Longley-Rice model](https://its.ntia.gov/software/itm)
+- [Meshtastic](https://meshtastic.org)
