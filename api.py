@@ -15,7 +15,7 @@ Endpoints:
     POST /coverage/h3 - Predict coverage as H3 hexagon GeoJSON
     POST /coverage/grid - Predict coverage as centroid point GeoJSON
     POST /coverage/contour - Predict coverage as contour band GeoJSON
-    POST /link - Predict path loss between two specific points
+    POST /link - Predict path loss between a transmitter and receiver at specific points
 
 References:
     ITM Technical Report: https://its.ntia.gov/software/itm
@@ -49,7 +49,7 @@ api = FastAPI()
 # Add CORS middleware
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://127.0.0.1:8080"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -231,9 +231,9 @@ def run_coverage_prediction(payload: CoveragePredictRequest) -> dict[str, float]
 
     duration = time.time() - start_time
     logging.info(f"ITM model calculation completed in {duration:.2f} seconds.")
-
+    logging.info(f"{raw_results} cells")
     # Convert list of (cell_id: u64, elevation: f32, loss_db: f64) to {h3_hex: loss_db}
-    return {hex(cell_id): loss_db for cell_id, _elev, loss_db in raw_results}
+    return {h3.int_to_str(cell_id): loss_db for cell_id, _elev, loss_db in raw_results}
 
 
 def coverage_to_contour_geojson(coverage: dict[str, float], levels: list[float] | None = None) -> dict:
@@ -346,7 +346,7 @@ def coverage_to_contour_geojson(coverage: dict[str, float], levels: list[float] 
 @api.post("/coverage/h3")
 async def predict_coverage_h3(payload: CoveragePredictRequest) -> JSONResponse:
     """
-    Predict signal coverage as H3 hexagons.
+    Predict signal loss over a geographic area as a function of H3 hexagons.
 
     Returns:
         GeoJSON FeatureCollection where each Feature is an H3 cell polygon
@@ -359,13 +359,15 @@ async def predict_coverage_h3(payload: CoveragePredictRequest) -> JSONResponse:
     features = []
     for h3_index, loss_db in coverage.items():
         hex_boundary = h3.cell_to_boundary(h3_index)
+        # h3 returns (lat, lon); GeoJSON requires [lon, lat]
+        geojson_boundary = [(lon, lat) for lat, lon in hex_boundary]
+        geojson_boundary.append(geojson_boundary[0])  # close the ring
         features.append(
             geojson.Feature(
-                geometry=geojson.Polygon([hex_boundary]),
+                geometry=geojson.Polygon([geojson_boundary]),
                 properties={"loss_db": loss_db},
             )
         )
-
     return JSONResponse(content=geojson.FeatureCollection(features))
 
 

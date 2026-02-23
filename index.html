@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Meshtastic Coverage Estimator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #map {
+            height: 100%;
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            width: 200px;
+            cursor: grab;
+        }
+
+        .controls.dragging {
+            cursor: grabbing;
+            opacity: 0.9;
+        }
+
+        #color-bar-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            width: 200px;
+            text-align: center;
+        }
+
+        .color-bar {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to right, red, orange, yellow, green, blue, purple);
+        }
+
+        input[type="text"],
+        button {
+            display: block;
+            margin-bottom: 10px;
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        #about-link {
+            display: block;
+            margin-top: 10px;
+            text-align: left;
+        }
+
+ dialog {
+    width: 400px;
+    max-width: 100%;
+    padding: 20px;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    text-align: left;
+}
+
+        dialog button {
+        width: 60px; /* Or set a specific width like 100px */
+        padding: 5px 10px; /* Adjust padding to control the button size */
+        display: inline-block;
+        text-align: center;
+        margin-top: 10px;
+    }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <div class="controls">
+        <h3>Meshtastic Coverage Estimator</h3>
+        <p>ITM / Longley-Rice model for estimating the range of your meshtastic radio.</p>
+        <p>Click on the map to select a location, then click run model. The colored tiles are where your signal can be received.</p>
+
+        <label for="height">Height above ground (m):</label>
+        <input type="text" id="height" value="1.0">
+
+        <label for="gain">Antenna gain (dB):</label>
+        <input type="text" id="gain" value="2.0">
+
+        <label for="lat">Latitude (deg):</label>
+        <input type="text" id="lat" value="51.000000">
+
+        <label for="lng">Longitude (deg):</label>
+        <input type="text" id="lng" value="-114.000000">
+
+        <label for="region">Region:</label>
+        <select id="region">
+            <option value="US">US</option>
+            <option value="EU_868">EU_868</option>
+            <option value="EU_433">EU_433</option>
+            <option value="ANZ">ANZ</option>
+            <option value="CN">CN</option>
+            <option value="IN">IN</option>
+            <option value="JP">JP</option>
+            <option value="KR">KR</option>
+            <option value="MY_919">MY_919</option>
+            <option value="MY_433">MY_433</option>
+            <option value="NZ_865">NZ_865</option>
+            <option value="RU">RU</option>
+            <option value="SG_923">SG_923</option>
+            <option value="TW">TW</option>
+            <option value="TH">TH</option>
+            <option value="UA_868">UA_868</option>
+            <option value="UA_433">UA_433</option>
+        </select>
+        <p></p>
+
+        <button onclick="predict()">Run Model</button>
+
+        <hr>
+        <p>Path Loss (dB)</p>
+        <div style="display: flex; justify-content: space-between;">
+        <span id="min-rssi">80 (strong)</span>
+        <span id="max-rssi">160 (weak)</span>
+        </div>
+        <div class="color-bar" id="color-bar"></div>
+        <br>
+
+        <!-- About link -->
+        <a href="#" id="about-link" onclick="openAboutDialog()">About</a>
+    </div>
+
+
+
+    <!-- About dialog -->
+    <dialog id="about-dialog">
+    <h3>About</h3>
+    <p>
+        This tool calculates the ITM / Longley-Rice radio propagation model for Meshtastic LoRa radios
+        (<a href="https://www.meshtastic.org" target="_blank">www.meshtastic.org</a>). Its purpose is to estimate the range of a Meshtastic radio, using a realistic physics and terrain model. </p>
+        It is not affiliated with the Meshtastic project.
+
+        <p>Source code: <a href="https://github.com/mrpatrick1991/meshtastic_linkplanner">https://github.com/mrpatrick1991/meshtastic_linkplanner</a></p>
+
+    <p>
+        An effort has been made to choose model parameters which are realistic for meshtastic devices. However, the model
+        does not account for higher-order effects such as reflections from water, structures, or signal degradation by precipitation or vegetation.
+        The results are approximate and should not be used for safety-critical applications.
+    </p>
+
+        <p>
+            No location information is stored by this tool.
+        </p>
+
+    <h3>Acknowledgements</h3>
+    <p>
+        The propagation engine is based on work by the author of the
+        <a href="https://github.com/JayKickliter/geoprop-py" target="_blank">geoprop-py</a> repository.
+    </p>
+    <p>
+        This webpage uses the <a href="https://leafletjs.com" target="_blank">Leaflet</a> library.
+    </p>
+    <p>
+        Terrain data is from the NASA Shuttle Radar Topography Mission
+        (<a href="https://www.earthdata.nasa.gov/sensors/srtm" target="_blank">SRTM</a>).
+    </p>
+    <p>
+        The required experimental data were gathered using hardware and software designs from
+        <a href="https://www.meshtastic.org" target="_blank">www.meshtastic.org</a>.
+    </p>
+        <p>High-performance computation is provided by Calgary Protospace (<a href="https://protospace.ca/">https://protospace.ca</a>).</p>
+        <p></p>
+        <button onclick="closeAboutDialog()">Close</button>
+    </dialog>
+
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-providers@latest/leaflet-providers.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.2/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-scale-chromatic@3.0.0/dist/d3-scale-chromatic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol/dist/L.Control.Locate.min.js" charset="utf-8"></script>
+
+    <script>
+        var currentMarker = null;
+
+        var OpenStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        noWrap: true,              //this is the crucial line!
+        bounds: [
+          [-90, -180],
+          [90, 180]
+        ],
+        attribution: '© OpenStreetMap contributors'
+        });
+
+        var OpenTopoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        noWrap: true,              //this is the crucial line!
+        bounds: [
+          [-90, -180],
+          [90, 180]
+        ],
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+        });
+
+        var map = L.map('map', {
+        center: [51, -114], // Set your desired center coordinates
+        zoom: 10,
+        layers: [OpenStreetMap] // Set the default base layer
+        });
+
+        // Create a base layers object to hold the map options
+        var baseMaps = {
+        "OpenStreetMap": OpenStreetMap,
+        "OpenTopoMap": OpenTopoMap
+        };
+
+        // Add the layer control to the map
+        L.control.layers(baseMaps, {}, { position: 'topleft' }).addTo(map);
+
+        // add location control to the map
+        L.control
+            .locate({
+                strings: {
+                    title: "My Location",
+                },
+                locateOptions: {
+                    maxZoom: 10
+                }
+            })
+        .addTo(map);
+
+        map.on('click', function (e) {
+            document.getElementById('lat').value = e.latlng.wrap().lat.toFixed(6);
+            document.getElementById('lng').value = e.latlng.wrap().lng.toFixed(6);
+
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+
+            currentMarker = L.marker(e.latlng).addTo(map);
+        });
+
+        map.on('locationfound', function (e) {
+            const userLat = e.latitude;
+            const userLng = e.longitude;
+
+            // Set the latitude and longitude input values
+            document.getElementById('lat').value = userLat.toFixed(6);
+            document.getElementById('lng').value = userLng.toFixed(6);
+
+            // Update marker position
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+
+            currentMarker = L.marker(e.latlng).addTo(map);
+        });
+
+        async function predict() {
+            const runButton = document.querySelector('button');
+            runButton.textContent = 'Running Model...';
+            runButton.disabled = true;
+
+            var lat = parseFloat(document.getElementById('lat').value);
+            var lon = parseFloat(document.getElementById('lng').value);
+            var txh = parseFloat(document.getElementById("height").value);
+            var gain = parseFloat(document.getElementById("gain").value);
+            var region = document.getElementById("region").value;
+
+            var regionFrequencies = {
+                "US": 906.875,
+                "EU_868": 869.525,
+                "EU_433": 433.175,
+                "ANZ": 916.0,
+                "CN": 470.0,
+                "IN": 865.0,
+                "JP": 920.0,
+                "KR": 920.0,
+                "MY_919": 919.0,
+                "MY_433": 433.0,
+                "NZ_865": 865.0,
+                "RU": 868.0,
+                "SG_923": 923.0,
+                "TW": 923.0,
+                "TH": 920.0,
+                "UA_868": 868.0,
+                "UA_433": 433.0,
+            };
+
+            var frequency = regionFrequencies[region] || 906.875;
+
+            var postData = {
+                "lat": lat,
+                "lon": lon,
+                "txh": txh,
+                "rxh": 1.0,
+                "tx_gain": gain,
+                "rx_gain": 1.0,
+                "frequency": frequency,
+                "resolution": 8
+            };
+
+            try {
+                const response = await fetch("http://localhost:8080/coverage/h3", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(postData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const geojson = await response.json();
+                plotH3Tiles(geojson);
+
+            } catch (error) {
+                console.error('Error during prediction:', error);
+            } finally {
+                runButton.textContent = 'Run Model';
+                runButton.disabled = false;
+            }
+        }
+
+        function plotH3Tiles(geojson) {
+            if (window.h3LayerGroup) {
+                map.removeLayer(window.h3LayerGroup);
+            }
+
+            const h3LayerGroup = L.layerGroup();
+            const lossThreshold = 160;
+
+            geojson.features.forEach(feature => {
+                const lossDb = feature.properties.loss_db;
+
+                if (lossDb < lossThreshold) {
+                    const hexBoundary = feature.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+
+                    const color = getColorForLoss(lossDb);
+
+                    const polygon = L.polygon(hexBoundary, {
+                        color: color,
+                        fillOpacity: 0.5
+                    });
+
+                    polygon.bindTooltip(`${lossDb.toFixed(2)} dB loss`, {
+                        permanent: false,
+                        direction: "center"
+                    });
+
+                    h3LayerGroup.addLayer(polygon);
+                }
+            });
+
+            h3LayerGroup.addTo(map);
+            window.h3LayerGroup = h3LayerGroup;
+        }
+
+        function getColorForLoss(lossDb) {
+            const minLoss = 80;
+            const maxLoss = 160;
+            const normalized = 1 - (lossDb - minLoss) / (maxLoss - minLoss);
+            return d3.scaleSequential(d3.interpolatePlasma)(normalized);
+        }
+
+        function updateColorBar() {
+            const colorBar = document.getElementById('color-bar');
+            let gradientStops = [];
+            const numSteps = 64;
+
+            for (let i = 0; i <= numSteps; i++) {
+                const normalized = i / numSteps;
+                const color = d3.scaleSequential(d3.interpolatePlasma)(normalized);
+                gradientStops.push(`${color} ${(i / numSteps) * 100}%`);
+            }
+
+            const gradient = `linear-gradient(to right, ${gradientStops.join(', ')})`;
+            colorBar.style.background = gradient;
+        }
+
+        updateColorBar();
+
+        function openAboutDialog() {
+            document.getElementById('about-dialog').showModal();
+        }
+
+        function closeAboutDialog() {
+            document.getElementById('about-dialog').close();
+        }
+
+        // Drag-to-reposition controls panel
+        (function() {
+            const panel = document.querySelector('.controls');
+            let isDragging = false, offsetX, offsetY;
+
+            panel.addEventListener('mousedown', startDrag);
+            panel.addEventListener('touchstart', startDrag, { passive: false });
+
+            function startDrag(e) {
+                if (e.target.closest('input, select, button, a, label')) return;
+                isDragging = true;
+                panel.classList.add('dragging');
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                offsetX = clientX - panel.offsetLeft;
+                offsetY = clientY - panel.offsetTop;
+                // Switch from right-positioned to left-positioned
+                panel.style.left = panel.offsetLeft + 'px';
+                panel.style.right = 'auto';
+                e.preventDefault();
+            }
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag, { passive: false });
+
+            function drag(e) {
+                if (!isDragging) return;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                panel.style.left = (clientX - offsetX) + 'px';
+                panel.style.top = (clientY - offsetY) + 'px';
+                e.preventDefault();
+            }
+
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchend', stopDrag);
+
+            function stopDrag() {
+                if (!isDragging) return;
+                isDragging = false;
+                panel.classList.remove('dragging');
+            }
+        })();
+    </script>
+</body>
+
+</html>
