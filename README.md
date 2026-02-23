@@ -14,13 +14,13 @@ Requirements:
 
 Copy the terrain tiles (17.7 GB download, 75.48 GB uncompressed) to a convenient folder by running:
 
-```mkdir -p /path/to/srtm/tiles && curl -L https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global/resolve/main/srtm.tar.gz | tar xzf - -C tiles/ --strip-components=2```
+```mkdir -p tiles && curl -L https://huggingface.co/datasets/mpatrick1991/srtm-3-arc-second-global/resolve/main/srtm.tar.gz | tar xzf - -C tiles/ --strip-components=2```
 
 Clone the repository:
 
 ```git clone --recurse-submodules https://github.com/mrpatrick1991/meshtastic_linkplanner/ && cd meshtastic_siteplanner```
 
-Copy the `.env.example` file to `.env` and change `tile_dir` to point to the above folder:
+Copy `.env.example` to `.env`, change `tile_dir` to point to the tile folder:
 
 ```cp .env.example .env```
 
