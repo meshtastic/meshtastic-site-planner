@@ -49,7 +49,7 @@ api = FastAPI()
 # Add CORS middleware
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,7 +106,7 @@ class CoveragePredictRequest(BaseModel):
     tx_gain: float = Field(1.0, ge=1.0, description="transmitter gain in dB")
     rx_gain: float = Field(1.0, ge=1.0, description="receiver gain in dB")
     resolution: int = Field(8, ge=7, le=12, description="simulation h3 cell resolution")
-    frequency: float = Field(..., gt=50, description="signal frequency in MHz") # below ~50MHz non-LOS propagation dominates, model is not accurate. 
+    frequency: float = Field(915, gt=50, description="signal frequency in MHz") # below ~50MHz non-LOS propagation dominates, model is not accurate. 
 
     # Optional ITM parameters
     climate: Optional[
