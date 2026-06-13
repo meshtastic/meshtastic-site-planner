@@ -589,7 +589,9 @@ body {
   color: var(--mt-on-surface);
 }
 
-.maplibregl-ctrl-group button + button {
+/* Direct children only: dividers between stacked controls (zoom +/-), NOT
+ * the basemap menu items (also <button>s nested inside the ctrl group). */
+.maplibregl-ctrl-group > button + button {
   border-top: 1px solid var(--mt-outline-variant);
 }
 
