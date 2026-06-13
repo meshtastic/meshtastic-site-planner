@@ -1,10 +1,12 @@
 .venv/
 .DS_Store
 __pycache__/
-.DS_Store
 .idea/
 *.tiff
 *.tif
+# Golden fixtures are deliberately committed (validation against the
+# legacy SPLAT! backend - see test/fixtures/).
+!test/fixtures/golden/*.tif
 *.pyc
 log.txt
 *.log
@@ -13,12 +15,16 @@ splat/build/
 splat/utils/postdownload
 splat
 .splat_tiles/
-app/ui/node*
-app/ui/*.json
+
+# Engine build artifacts (the wasm in src/engine/generated/ IS committed)
+engine/build/
+
+# Test caches and derived terrain pages
+test/.cache/
+test/fixtures/terrain.s16/
 
 # Logs
 logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -33,13 +39,9 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 .vite
-app/ui/assets/*.css
-app/ui/assets/*.js
