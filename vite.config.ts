@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   // Relative asset paths in production so the build works unchanged at the
   // default GitHub Pages project URL (…github.io/meshtastic-site-planner/)
   // AND at a custom domain root (site.meshtastic.org). The app has no

@@ -1,44 +1,45 @@
 <template>
   <div>
-    <p class="mt-section-hint mb-2">
+    <p class="mt-hint mb-3">
       Analyze the link from this transmitter to one target: terrain profile,
       line of sight, Fresnel clearance, and link margin.
     </p>
 
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-sm flex-fill"
-        :class="store.linkState === 'placing' ? 'btn-secondary active' : 'btn-primary'"
-        @click="store.beginPlaceTarget()">
-        {{ store.linkState === 'placing' ? 'Click the map…' : (store.linkTarget ? 'Move target' : 'Pick target on map') }}
+    <div class="flex gap-2">
+      <button
+        type="button"
+        class="mt-btn mt-btn-sm flex-1"
+        :class="store.linkState === 'placing' ? 'mt-btn-secondary' : 'mt-btn-primary'"
+        @click="store.beginPlaceTarget()"
+      >
+        {{ store.linkState === 'placing' ? 'Click the map…' : store.linkTarget ? 'Move target' : 'Pick target on map' }}
       </button>
-      <button v-if="store.linkTarget" type="button" class="btn btn-secondary btn-sm" @click="store.clearLink()">
+      <button v-if="store.linkTarget" type="button" class="mt-btn mt-btn-secondary mt-btn-sm" @click="store.clearLink()">
         Clear
       </button>
     </div>
 
-    <div v-if="store.linkTarget" class="row g-2 mt-2">
-      <div class="col-6">
-        <label for="tgt_lat" class="form-label">Target lat</label>
-        <input id="tgt_lat" v-model.number="tLat" @change="applyCoords" type="number" step="0.000001"
-          min="-90" max="90" class="form-control form-control-sm" />
+    <div v-if="store.linkTarget" class="mt-2 grid grid-cols-2 gap-2">
+      <div>
+        <label for="tgt_lat" class="mt-label">Target lat</label>
+        <input id="tgt_lat" v-model.number="tLat" @change="applyCoords" type="number" step="0.000001" min="-90" max="90" class="mt-input" />
       </div>
-      <div class="col-6">
-        <label for="tgt_lon" class="form-label">Target lon</label>
-        <input id="tgt_lon" v-model.number="tLon" @change="applyCoords" type="number" step="0.000001"
-          min="-180" max="180" class="form-control form-control-sm" />
+      <div>
+        <label for="tgt_lon" class="mt-label">Target lon</label>
+        <input id="tgt_lon" v-model.number="tLon" @change="applyCoords" type="number" step="0.000001" min="-180" max="180" class="mt-input" />
       </div>
     </div>
 
-    <p v-if="!store.linkTarget && store.linkState !== 'placing'" class="mt-section-hint mt-2 mb-0">
+    <p v-if="!store.linkTarget && store.linkState !== 'placing'" class="mt-hint mt-2">
       Tip: drag the blue target pin to move it; the link recomputes automatically.
     </p>
 
-    <div v-if="store.linkState === 'computing'" class="d-flex align-items-center gap-2 mt-3 small text-secondary">
-      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+    <div v-if="store.linkState === 'computing'" class="mt-3 flex items-center gap-2 text-sm text-ink-muted">
+      <span class="mt-spinner" role="status" aria-hidden="true"></span>
       Computing link…
     </div>
 
-    <div v-if="store.linkState === 'error'" class="mt-alert-error mt-3 p-2 small" role="alert">
+    <div v-if="store.linkState === 'error'" class="mt-3 rounded-lg border border-danger bg-danger-bg p-2 text-sm text-on-danger-bg" role="alert">
       {{ store.linkError }}
     </div>
 
@@ -68,7 +69,7 @@
         <span>target</span>
       </div>
 
-      <button type="button" class="btn btn-secondary btn-sm w-100 mt-2" @click="store.computeLink()">
+      <button type="button" class="mt-btn mt-btn-secondary mt-btn-sm mt-2 w-full" @click="store.computeLink()">
         Recompute with current settings
       </button>
     </div>
@@ -129,7 +130,7 @@ const verdictText = computed(() => {
 });
 
 /* Profile chart geometry: terrain (curvature-adjusted), the line-of-sight ray,
- * and the bottom of the first Fresnel zone, scaled into a fixed viewBox. */
+   and the bottom of the first Fresnel zone, scaled into a fixed viewBox. */
 const chart = computed(() => {
   const a = store.linkAnalysis;
   if (!a || a.samples.length < 2) return null;

@@ -426,6 +426,16 @@ const useStore = defineStore('store', {
       this.overlayStyle = style;
       this.syncOverlays();
     },
+    /** Live-apply the Display panel to every existing overlay without
+     * recomputing (#1). The engine output is cached per site, so re-coloring
+     * (and re-thresholding/opacity) is a pure re-render — instant even after a
+     * slow HD run. Mirrors the panel onto each site so the list swatches and
+     * the on-map legend stay in sync. */
+    applyDisplayLive() {
+      const d = this.splatParams.display;
+      for (const site of this.localSites) Object.assign(site.params.display, d);
+      this.syncOverlays();
+    },
     /** (Re-)adds every site's overlay in the current style; safe after
      * style switches and idempotent. */
     syncOverlays() {
