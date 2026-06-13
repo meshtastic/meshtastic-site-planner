@@ -10,6 +10,8 @@
   "_splat_signal_ptr",
   "_splat_mask_ptr",
   "_splat_errnum_counts",
+  "_splat_point_to_point",
+  "_splat_p2p_profile_ptr",
   "_splat_destroy",
   "_splat_malloc",
   "_splat_free"

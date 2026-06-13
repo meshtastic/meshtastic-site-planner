@@ -115,6 +115,10 @@ struct Engine {
     int path_length = 0;
     std::vector<double> elev;
 
+    /* Point-to-point link profile (issue #14): packed [dist_km, ground_m]. */
+    std::vector<double> p2p_profile;
+    int p2p_length = 0;
+
     /* Region-wide output rasters (filled by splat_rasterize). */
     std::vector<unsigned char> out_signal;
     std::vector<unsigned char> out_mask;
@@ -899,6 +903,100 @@ int splat_errnum_counts(int handle, int32_t *out6) {
     for (int i = 0; i < 6; i++)
         out6[i] = e->errnum_counts[i];
     return 0;
+}
+
+/* Single transmitter->destination link analysis (issue #14). Runs the same
+ * ITM model the coverage sweep uses, over the full great-circle profile from
+ * the TX to one target, and reports the destination path loss / signal plus
+ * the terrain profile for the line-of-sight chart. Unlike PlotLRPath it does
+ * NOT write to the page rasters, so it is safe to call independently of (or
+ * after) a coverage run.
+ *
+ * The caller must have loaded the terrain pages the TX->target path crosses
+ * (same LoadSDF semantics as coverage); unloaded ground reads as sea level.
+ * elev[1] uses SPLAT's point-to-point report spacing (total / (points - 1)).
+ *
+ * out5 receives [loss_db, dbm, distance_km, azimuth_deg, errnum]. dbm uses the
+ * coverage convention (EIRP from ERP; RX antenna gain excluded - add it in TS).
+ * Returns the profile point count (>= 2) or a negative SPLAT_E_* code. */
+int splat_point_to_point(int handle, double dst_lat_deg, double dst_lon_deg,
+                         double dst_alt_feet, double *out5) {
+    Engine *e = get_engine(handle);
+    if (!e)
+        return SPLAT_E_BADHANDLE;
+    if (!out5 || dst_lat_deg < -90.0 || dst_lat_deg > 90.0 ||
+        dst_lon_deg < -180.0 || dst_lon_deg > 180.0)
+        return SPLAT_E_BADPARAM;
+
+    /* West-positive longitude, matching LoadQTH (see splat_create). */
+    double lon_wp = (dst_lon_deg < 0.0) ? -dst_lon_deg : 360.0 - dst_lon_deg;
+    if (lon_wp < 0.0)
+        lon_wp += 360.0;
+
+    Site dst{};
+    dst.lat = dst_lat_deg;
+    dst.lon = lon_wp;
+    dst.alt = (float)dst_alt_feet;
+
+    ReadPath(*e, e->tx, dst);
+    int n = e->path_length;
+    if (n < 2)
+        return SPLAT_E_BADPARAM;
+
+    double *elev = e->elev.data();
+
+    /* Terrain (+ clutter on interior cells; sea-level cells and the two
+     * endpoints get none), in meters, exactly as PlotLRPath builds it. */
+    for (int x = 1; x < n - 1; x++)
+        elev[x + 2] = (e->path_elevation[x] == 0.0
+                           ? e->path_elevation[x] * METERS_PER_FOOT
+                           : (e->clutter + e->path_elevation[x]) *
+                                 METERS_PER_FOOT);
+    elev[2] = e->path_elevation[0] * METERS_PER_FOOT;
+    elev[n + 1] = e->path_elevation[n - 1] * METERS_PER_FOOT;
+
+    /* ITM over the whole profile (number_of_points = n). */
+    elev[0] = (double)(n - 1);
+    elev[1] = METERS_PER_MILE * (e->path_distance[n - 1] / (double)(n - 1));
+
+    double loss = 0.0;
+    char strmode[100];
+    int errnum = 0;
+    point_to_point_ITM(elev, e->tx.alt * METERS_PER_FOOT,
+                       dst.alt * METERS_PER_FOOT, e->eps_dielect,
+                       e->sgm_conductivity, e->eno_ns_surfref, e->frq_mhz,
+                       e->radio_climate, e->pol, e->conf, e->rel, loss, strmode,
+                       errnum);
+
+    double rxp = e->erp / pow(10.0, (loss - 2.14) / 10.0);
+    double dBm = 10.0 * log10(rxp * 1000.0);
+
+    out5[0] = loss;
+    out5[1] = dBm;
+    out5[2] = e->path_distance[n - 1] * KM_PER_MILE;
+    out5[3] = Azimuth(e->tx, dst);
+    out5[4] = (double)errnum;
+
+    /* Pack the ground profile as [distance_km, elevation_m] pairs (no clutter)
+     * for the UI's line-of-sight / Fresnel chart. */
+    e->p2p_profile.resize((size_t)n * 2);
+    for (int i = 0; i < n; i++) {
+        e->p2p_profile[(size_t)i * 2] = e->path_distance[i] * KM_PER_MILE;
+        e->p2p_profile[(size_t)i * 2 + 1] =
+            e->path_elevation[i] * METERS_PER_FOOT;
+    }
+    e->p2p_length = n;
+
+    return n;
+}
+
+/* Pointer to the packed [distance_km, elevation_m] profile from the most
+ * recent splat_point_to_point call (length = 2 * returned point count). */
+double *splat_p2p_profile_ptr(int handle) {
+    Engine *e = get_engine(handle);
+    if (!e || e->p2p_profile.empty())
+        return nullptr;
+    return e->p2p_profile.data();
 }
 
 void splat_destroy(int handle) {
