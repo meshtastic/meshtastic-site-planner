@@ -27,6 +27,24 @@ const RADIAL_CHUNK = 32;
 const TERRAIN_SPAN = 0.15;
 const COMPUTE_SPAN = 0.83;
 
+/**
+ * Peak wasm-heap estimate (MB) for a run. Every worker holds each elevation
+ * page (ippd^2 cells * 4 bytes = int16 elevation + signal byte + mask byte)
+ * plus a region-wide signal+mask raster (regionCells * 2 bytes).
+ */
+export function projectedHeapMB(pageCount: number, regionCells: number, ippd: number): number {
+  return (pageCount * ippd * ippd * 4 + regionCells * 2) / (1024 * 1024);
+}
+
+/**
+ * Heap ceiling for a run, under the engine's 1 GB (`MAXIMUM_MEMORY`) limit and
+ * leaving room for the sweep's working memory. The page region grows in
+ * whole-degree steps, so HD over a large area (high latitude / corner
+ * placement) can balloon: a ~9-page region (~667 MB) still runs, but ~12
+ * pages (~890 MB) would risk the ceiling, so it is refused.
+ */
+export const HD_HEAP_BUDGET_MB = 800;
+
 function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent;
@@ -79,6 +97,15 @@ export class WasmCoverageEngine implements CoverageEngine {
         region = scout.region();
       } finally {
         scout.destroy();
+      }
+
+      /* OOM guard: fail clearly here, before fetching terrain, rather than
+       * aborting the wasm heap mid-run (see projectedHeapMB / HD_HEAP_BUDGET_MB). */
+      if (projectedHeapMB(refs.length, region.width * region.height, params.resolutionIppd) > HD_HEAP_BUDGET_MB) {
+        throw new Error(
+          'This area is too large for high-resolution terrain. ' +
+            'Reduce the max range or turn off High resolution terrain.'
+        );
       }
 
       /* Terrain phase. */

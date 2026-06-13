@@ -43,8 +43,14 @@ export const METERS_PER_FOOT = 0.3048;
  * elevation data past the region edge.
  */
 export const MAX_RADIUS_METERS = 150000;
-/** HD (30 m) terrain uses 9x the memory/compute; cap the radius. */
-export const MAX_RADIUS_METERS_HD = 30000;
+/**
+ * HD (30 m) terrain uses 9x the memory/compute per page. The page region
+ * grows in whole-degree steps, so beyond ~70 km a high-latitude or
+ * corner-of-cell placement can span enough HD pages to blow the engine's
+ * 1 GB heap; WasmCoverageEngine guards that case and fails cleanly. 70 km
+ * is the largest cap that runs across most placements.
+ */
+export const MAX_RADIUS_METERS_HD = 70000;
 
 export interface CoverageRequest {
   lat: number;

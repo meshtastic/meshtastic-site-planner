@@ -16,7 +16,7 @@
         <div class="row g-2 mt-2">
             <div class="col-6">
                 <label for="simulation_extent" class="form-label">Max Range (km)</label>
-                <input v-model="simulation.simulation_extent" type="number" class="form-control form-control-sm" id="simulation_extent" required min="1" :max="simulation.high_resolution ? 30 : 150" step="1" />
+                <input v-model="simulation.simulation_extent" type="number" class="form-control form-control-sm" id="simulation_extent" required min="1" :max="simulation.high_resolution ? 70 : 150" step="1" />
                 <div class="invalid-feedback">Radius must be a positive number (default: 30 km).</div>
             </div>
         </div>
@@ -27,7 +27,7 @@
                     <label class="form-check-label" for="high_resolution">High resolution terrain (30 m)</label>
                 </div>
                 <p class="mt-section-hint mt-1 mb-0">
-                    9x more detail than the default 90 m grid. Slower and limited to a 30 km range.
+                    9x more detail than the default 90 m grid. Slower and limited to a 70 km range.
                 </p>
             </div>
         </div>

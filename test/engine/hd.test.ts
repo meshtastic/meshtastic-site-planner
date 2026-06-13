@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import createSplatModule from '../../src/engine/generated/splat_driver.mjs';
 import { EngineContext, runCoverageSlice, type EngineRunParams } from '../../src/engine/core';
 import { toEngineParams } from '../../src/engine/params';
+import { projectedHeapMB, HD_HEAP_BUDGET_MB } from '../../src/engine/WasmCoverageEngine';
 import { pageFromHgt } from '../../src/terrain/srtm';
 import { REPO_ROOT } from '../helpers';
 import { loadCase } from '../helpers';
@@ -34,8 +35,20 @@ describe('hd mode', () => {
     const req = { ...loadCase('calgary_30km'), high_resolution: true, radius: 100000 };
     const p = toEngineParams(req);
     expect(p.resolutionIppd).toBe(3600);
-    expect(p.radiusKm).toBe(30); // HD cap
+    expect(p.radiusKm).toBe(70); // HD cap (70 km)
+    // A radius under the cap is left untouched.
+    expect(toEngineParams({ ...loadCase('calgary_30km'), high_resolution: true, radius: 50000 }).radiusKm).toBe(50);
     expect(toEngineParams(loadCase('calgary_30km')).resolutionIppd).toBe(1200);
+  });
+
+  it('heap guard refuses a too-large HD region but allows typical ones', () => {
+    // A 12-page HD region (high-latitude / corner placement) projects ~890 MB.
+    expect(projectedHeapMB(12, 10800 * 14400, 3600)).toBeGreaterThan(HD_HEAP_BUDGET_MB);
+    // A typical 8-page HD region (~593 MB) and a 9-page worst-mid-lat (~667 MB) run.
+    expect(projectedHeapMB(8, 7200 * 14400, 3600)).toBeLessThan(HD_HEAP_BUDGET_MB);
+    expect(projectedHeapMB(9, 10800 * 10800, 3600)).toBeLessThan(HD_HEAP_BUDGET_MB);
+    // Standard resolution never trips the guard (a large 150 km region).
+    expect(projectedHeapMB(32, 9600 * 4800, 1200)).toBeLessThan(HD_HEAP_BUDGET_MB);
   });
 
   it('engine enumerates the same pages at 3600 ippd with HD-sized grids', async () => {
