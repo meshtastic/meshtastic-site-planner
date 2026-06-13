@@ -23,6 +23,23 @@ The minimal steps for creating a Meshtastic coverage prediction are:
 
 Multiple radio sites can be added to the simulation by repeating these steps. For a detailed explanation of the other adjustable parameters, refer to [parameters.md](parameters.md).
 
+## Features
+
+Beyond a basic coverage run, the planner includes:
+
+- **Device presets** — pick a common Meshtastic radio (Heltec V3/V4/V2, LILYGO T-Beam/T-Echo/T-Deck, RAK WisBlock, Station G2, SenseCAP T1000) to prefill typical transmit power and stock-antenna gain.
+- **Find highpoint** — snap the transmitter to the highest ground within a search radius, for quick hilltop siting.
+- **Point-to-point link** — analyze the link to one target: terrain profile, line of sight (with earth curvature), first Fresnel-zone clearance, and a link budget (received power and margin) from the same ITM model used for area coverage.
+- **Coverage statistics** — each site reports the area covered (above the receiver sensitivity), the maximum usable range, and the percentage of the plotted disk covered.
+- **Measure tool** — click two points to read great-circle distance and bearing.
+- **Two overlay styles** — a continuous signal heatmap or vector iso-contours, recolored live (color scale, min/max dBm, transparency) without recomputing.
+- **Multiple sites** — add several transmitters and toggle or remove each independently.
+- **Basemaps** — dark, streets, light, topographic, terrain, and satellite, plus place search.
+- **Georeferenced export** — export a site's coverage as GeoJSON, a PNG with a world file (`.pgw`), or KML for GIS tools and Google Earth.
+- **Shareable links** — the "Share" button copies a URL encoding the current parameters, so a configuration can be bookmarked or sent to someone.
+- **Saved settings** — parameters persist across reloads in the browser.
+- **Installable / offline** — the planner is a PWA: install it as an app, and once loaded it works offline (terrain you've already viewed is cached).
+
 ## Model and Assumptions
 
 This tool runs a physics simulation that depends on several assumptions. The most important ones are:
