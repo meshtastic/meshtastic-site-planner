@@ -1,6 +1,7 @@
 
 <template>
     <form novalidate>
+        <p class="mt-section-hint mb-2">The radio whose coverage is simulated.</p>
         <div class="row g-2">
             <div class="col-12">
                 <label for="name" class="form-label">Site name</label>
@@ -44,55 +45,44 @@
             </div>
         </div>
         <div class="mt-3 d-flex gap-2">
-            <button @click="setWithMap" type="button" id="setWithMap" class="btn btn-primary btn-sm" data-bs-toggle="popover" data-bs-trigger="manual" data-bs-placement="left" title="Set Coordinates" data-bs-content="" content="Click on the map to set the transmitter location.">
-                Set with Map
+            <button @click="store.beginPlaceOnMap()" type="button" id="setWithMap"
+                class="btn btn-sm text-nowrap flex-fill"
+                :class="store.placingMode ? 'btn-secondary active' : 'btn-primary'">
+                {{ store.placingMode ? 'Click the map…' : 'Place on map' }}
             </button>
-            <button @click="centerMapOnTransmitter" type="button" class="btn btn-secondary btn-sm">Center map on transmitter</button>
+            <button @click="centerMapOnTransmitter" type="button" class="btn btn-secondary btn-sm text-nowrap flex-fill">Center on site</button>
         </div>
+        <p class="mt-section-hint mt-2 mb-0">Tip: drag the green pin to fine-tune, or type coordinates above.</p>
     </form>
 </template>
 
 <script setup lang="ts">
-    import L from 'leaflet';
-    import * as bootstrap from 'bootstrap';
     import { useStore } from '../store.ts'
-    import { onMounted } from 'vue';
-    import { redPinMarker } from '../layers.ts';
+    import { onMounted, watch } from 'vue';
     const store = useStore();
     const transmitter = store.splatParams.transmitter;
 
     const centerMapOnTransmitter = () => {
         if (!isNaN(transmitter.tx_lat) && !isNaN(transmitter.tx_lon)) {
-            store.map!.setView([transmitter.tx_lat, transmitter.tx_lon], store.map!.getZoom()); // Center map on the coordinates
+            store.getMap()?.flyTo({ center: [transmitter.tx_lon, transmitter.tx_lat] });
         } else {
             alert("Please enter valid Latitude and Longitude values.");
         }
     };
-    let popover = new bootstrap.Popover(document.createElement("input"), {
-        trigger: "manual",
-    });
 
-    const setWithMap = () => {
-        popover.show();
-        store.map!.once("click", function (e: any) {
-            let { lat, lng } = e.latlng; // Get clicked location coordinates
-            lng = ((((lng + 180) % 360) + 360) % 360) - 180;
+    // Typing coordinates moves (or creates) the draggable draft pin, so the
+    // text fields and the map marker always agree. Skipped mid-simulation.
+    watch(
+        () => [Number(transmitter.tx_lat), Number(transmitter.tx_lon)] as const,
+        ([lat, lon]) => {
+            if (store.simulationState === 'running') return;
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
+            store.setDraftMarker(lat, lon);
+        }
+    );
 
-            store.setTxCoords(lat.toFixed(6), lng.toFixed(6)); // Update the store
-
-            // Remove the existing marker if it exists
-            if (store.currentMarker) {
-                store.map!.removeLayer(store.currentMarker as L.Marker);
-            }
-            // Add a new marker at the clicked location
-            store.currentMarker = L.marker([lat, lng], { icon: redPinMarker }).addTo(store.map as L.Map)
-            popover.hide(); // Hide the popover
-        });
-    };
     onMounted(() => {
-        popover = new bootstrap.Popover(document.getElementById("setWithMap") as Element, {
-            trigger: "manual",
-        });
         store.initMap(); // Initialize the map
     });
 

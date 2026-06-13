@@ -1,0 +1,16 @@
+[
+  "_splat_create",
+  "_splat_page_count",
+  "_splat_page_info",
+  "_splat_load_page",
+  "_splat_radial_count",
+  "_splat_run_radials",
+  "_splat_rasterize",
+  "_splat_region_info",
+  "_splat_signal_ptr",
+  "_splat_mask_ptr",
+  "_splat_errnum_counts",
+  "_splat_destroy",
+  "_splat_malloc",
+  "_splat_free"
+]

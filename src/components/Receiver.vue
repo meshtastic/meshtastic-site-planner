@@ -1,6 +1,7 @@
 
 <template>
     <form novalidate>
+        <p class="mt-section-hint mb-2">The nodes that should hear this site (-130 dBm matches the default LongFast preset).</p>
         <div class="row g-2">
             <div class="col-6">
                 <label for="rx_sensitivity" class="form-label">Sensitivity (dBm)</label>

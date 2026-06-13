@@ -1,0 +1,6 @@
+# Dev-only dependencies for scripts/compare_golden.py (Tier-A parity check)
+numpy
+tifffile
+imagecodecs
+pillow
+matplotlib

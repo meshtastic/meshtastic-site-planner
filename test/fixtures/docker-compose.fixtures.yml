@@ -1,0 +1,16 @@
+# Override used only by test/fixtures/generate.sh to harvest golden fixtures
+# from the legacy backend on a dev machine. Lowers the memory limit so the
+# container starts inside a default Docker Desktop VM and bind-mounts the
+# fixtures directory so dump scripts can write goldens back to the repo.
+services:
+  app:
+    mem_limit: 6G
+    restart: "no"
+    volumes:
+      - ./ui:/app/ui
+      - ./test/fixtures:/fixtures
+  redis:
+    restart: "no"
+    # The app reaches redis over the compose network; don't bind the host
+    # port (it may already be taken by another local redis).
+    ports: !reset []

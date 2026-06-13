@@ -1,5 +1,14 @@
 <template>
     <form novalidate>
+        <label class="form-label">Overlay style</label>
+        <div class="btn-group w-100 mb-3" role="group" aria-label="Overlay style">
+            <button type="button" class="btn btn-sm"
+                :class="store.overlayStyle === 'heatmap' ? 'btn-primary' : 'btn-secondary'"
+                @click="store.setOverlayStyle('heatmap')">Heatmap</button>
+            <button type="button" class="btn btn-sm"
+                :class="store.overlayStyle === 'contours' ? 'btn-primary' : 'btn-secondary'"
+                @click="store.setOverlayStyle('contours')">Contours</button>
+        </div>
         <div class="row g-2">
             <div class="col-6">
                 <label for="min_dbm" class="form-label">Minimum dBm</label>
@@ -31,19 +40,16 @@
                 <div class="invalid-feedback">Transparency must be between 0 and 100 (default: 50).</div>
             </div>
         </div>
-    <div class="mt-3 text-center">
-      <div>
-        <img
-          :src="`/colormaps/${display.color_scale}.png`"
-          alt="Colorbar"
-          width="256"
-          height="30"
-          style="border: 1px solid #ccc; display: block; margin: 0 auto;"
-        />
-      </div>
+    <p class="mt-section-hint mt-3 mb-1">Display changes apply to new simulations.</p>
+    <div class="mt-1">
+      <img
+        :src="`/colormaps/${display.color_scale}.png`"
+        alt="Color scale preview"
+        class="mt-colorbar"
+      />
       <div class="d-flex justify-content-between mt-1">
-        <span class="badge bg-primary">{{ display.min_dbm }} dBm</span>
-        <span class="badge bg-primary">{{ display.max_dbm }} dBm</span>
+        <span class="mt-legend-label">{{ display.min_dbm }} dBm</span>
+        <span class="mt-legend-label">{{ display.max_dbm }} dBm</span>
       </div>
     </div>
     </form>
@@ -51,5 +57,6 @@
 
 <script setup lang="ts">
 import { useStore } from "../store.ts";
-const display = useStore().splatParams.display;
+const store = useStore();
+const display = store.splatParams.display;
 </script>

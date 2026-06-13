@@ -1,7 +1,11 @@
+import type { CoverageResult } from './engine/CoverageEngine';
+
 export interface Site {
     params: SplatParams;
-    taskId: string;
-    raster: any;
+    /** Unique id for list rendering (was the backend task id). */
+    id: string;
+    /** Cropped engine output; rendered via src/map/overlay.ts. */
+    result: CoverageResult;
 }
 export interface SplatParams {
     transmitter: {

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site-planner",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--port", "5173", "--strictPort"],
+      "port": 5173
+    },
+    {
+      "name": "site-planner-static",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["preview", "--port", "4173", "--strictPort"],
+      "port": 4173
+    }
+  ]
+}

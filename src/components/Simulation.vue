@@ -1,5 +1,6 @@
 <template>
   <form novalidate>
+        <p class="mt-section-hint mb-2">Statistical confidence and the maximum range to compute. Longer ranges take longer.</p>
         <div class="row g-2">
             <div class="col-6">
                 <label for="situation_fraction" class="form-label">Situation Fraction (%)</label>
@@ -15,19 +16,21 @@
         <div class="row g-2 mt-2">
             <div class="col-6">
                 <label for="simulation_extent" class="form-label">Max Range (km)</label>
-                <input v-model="simulation.simulation_extent" type="number" class="form-control form-control-sm" id="simulation_extent" required min="1" max="100" step="1" />
+                <input v-model="simulation.simulation_extent" type="number" class="form-control form-control-sm" id="simulation_extent" required min="1" :max="simulation.high_resolution ? 30 : 150" step="1" />
                 <div class="invalid-feedback">Radius must be a positive number (default: 30 km).</div>
             </div>
         </div>
-        <!-- <div class="row mt-3">
+        <div class="row g-2 mt-3">
             <div class="col-12">
-                <label for="high_resolution" class="form-label">High-Resolution</label>
-                <div class="form-check">
-                    <input v-model="simulation.high_resolution" type="checkbox" class="form-check-input" id="high_resolution" />
-                    <label class="form-check-label" for="high_resolution">Use 30 meter resolution terrain data (default: 90 meter).</label>
+                <div class="form-check form-switch">
+                    <input v-model="simulation.high_resolution" type="checkbox" role="switch" class="form-check-input" id="high_resolution" />
+                    <label class="form-check-label" for="high_resolution">High resolution terrain (30 m)</label>
                 </div>
+                <p class="mt-section-hint mt-1 mb-0">
+                    9x more detail than the default 90 m grid. Slower and limited to a 30 km range.
+                </p>
             </div>
-        </div> -->
+        </div>
     </form>
 </template>
 
