@@ -15,7 +15,8 @@ import { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METERS } from './engine/params.ts';
 import { analyzeLink, type LinkAnalysis } from './engine/link.ts';
-import { loadParams } from './persist.ts';
+import { loadParams, mergeParams, saveParams } from './persist.ts';
+import { decodeSharedHash, buildShareUrl, clearSharedHash } from './permalink.ts';
 import { TerrainService } from './terrain/TerrainService.ts';
 
 // Module-level singletons: workers, terrain cache, and map handles outlive
@@ -151,6 +152,14 @@ function defaultParams(): SplatParams {
   };
 }
 
+/** Initial params: a shared permalink (#9) wins over the persisted params
+ * (#12), which win over the factory defaults. */
+function initialParams(): SplatParams {
+  const d = defaultParams();
+  const shared = decodeSharedHash();
+  return shared ? mergeParams(d, shared) : loadParams(d);
+}
+
 const useStore = defineStore('store', {
   state() {
     return {
@@ -171,8 +180,10 @@ const useStore = defineStore('store', {
       /** Find-highpoint (#39) status. */
       highpointBusy: false,
       highpointMessage: '' as string,
-      // Restore the last-used parameters (#12); falls back to defaults.
-      splatParams: loadParams(defaultParams()),
+      // Restore from a shared link (#9) or the last-used params (#12).
+      splatParams: initialParams(),
+      /** Transient "Copied!" feedback for the share button (#9). */
+      shareCopied: false,
     }
   },
   actions: {
@@ -426,6 +437,31 @@ const useStore = defineStore('store', {
           error instanceof Error ? error.message : String(error);
       } finally {
         this.highpointBusy = false;
+      }
+    },
+
+    /* ---- Shareable permalink (#9) ---- */
+    /** Copy a link encoding the current parameters to the clipboard. */
+    async copyShareLink() {
+      const url = buildShareUrl(this.splatParams);
+      try {
+        await navigator.clipboard.writeText(url);
+        this.shareCopied = true;
+        setTimeout(() => {
+          this.shareCopied = false;
+        }, 2000);
+      } catch {
+        // Clipboard unavailable (e.g. insecure context): show the URL instead.
+        window.prompt('Copy this link:', url);
+      }
+      return url;
+    },
+    /** If the page opened from a shared link, persist those params and drop the
+     * hash so later edits aren't overridden by the link on the next reload. */
+    consumeSharedLink() {
+      if (decodeSharedHash()) {
+        saveParams(this.splatParams);
+        clearSharedHash();
       }
     },
 

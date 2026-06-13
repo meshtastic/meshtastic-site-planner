@@ -6,20 +6,34 @@
         <img src="/logo.svg" alt="Meshtastic logo" width="34" height="18" class="inline-block" />
         <span>Meshtastic <span class="font-normal text-ink-muted">Site Planner</span></span>
       </a>
-      <button
-        type="button"
-        class="mt-btn mt-btn-ghost mt-btn-sm gap-2"
-        :aria-pressed="panelOpen"
-        aria-label="Toggle site parameters"
-        @click="panelOpen = !panelOpen"
-      >
-        <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" />
-          <line x1="4" y1="12" x2="20" y2="12" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
-          <line x1="4" y1="18" x2="20" y2="18" /><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none" />
-        </svg>
-        <span class="hidden sm:inline">Parameters</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="mt-btn mt-btn-ghost mt-btn-sm gap-2"
+          title="Copy a shareable link to this configuration"
+          @click="store.copyShareLink()"
+        >
+          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          <span class="hidden sm:inline">{{ store.shareCopied ? 'Copied!' : 'Share' }}</span>
+        </button>
+        <button
+          type="button"
+          class="mt-btn mt-btn-ghost mt-btn-sm gap-2"
+          :aria-pressed="panelOpen"
+          aria-label="Toggle site parameters"
+          @click="panelOpen = !panelOpen"
+        >
+          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none" />
+            <line x1="4" y1="12" x2="20" y2="12" /><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none" />
+            <line x1="4" y1="18" x2="20" y2="18" /><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none" />
+          </svg>
+          <span class="hidden sm:inline">Parameters</span>
+        </button>
+      </div>
     </nav>
 
     <!-- Map fills the viewport; the drawer overlays its right edge. -->

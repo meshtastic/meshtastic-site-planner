@@ -4,6 +4,7 @@ import './style.css'
 import App from './App.vue'
 import { createPinia } from 'pinia'
 import { saveParams } from './persist'
+import { useStore } from './store'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -21,3 +22,7 @@ pinia.use(({ store }) => {
 
 app.use(pinia)
 app.mount('#app')
+
+// A shared permalink (#9) was applied during store init; persist it and clear
+// the hash so subsequent edits win on the next reload.
+useStore(pinia).consumeSharedLink()
