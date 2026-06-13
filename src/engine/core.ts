@@ -47,6 +47,33 @@ export interface RegionInfo {
   pages: number;
 }
 
+export interface LinkTarget {
+  /** Target (receiver) location, WGS84 signed degrees. */
+  lat: number;
+  lon: number;
+  /** Receiver antenna height in feet AGL. */
+  altFeet: number;
+}
+
+export interface LinkProfilePoint {
+  /** Distance from the transmitter along the great circle, km. */
+  distanceKm: number;
+  /** Ground elevation, meters (no clutter). */
+  groundM: number;
+}
+
+export interface LinkResult {
+  /** ITM path loss, dB. */
+  lossDb: number;
+  /** Received signal at the target, dBm (TX gain via ERP; RX gain excluded). */
+  dbm: number;
+  distanceKm: number;
+  azimuthDeg: number;
+  /** ITM mode error number (>0 = caution; warning only). */
+  itmErrno: number;
+  profile: LinkProfilePoint[];
+}
+
 /** Cells per elevation page at a given resolution. */
 export function pageCells(ippd: number): number {
   return ippd * ippd;
@@ -190,6 +217,44 @@ export class EngineContext {
       check(this.m._splat_errnum_counts(this.handle, out), 'splat_errnum_counts');
       const base = out >> 2;
       return Array.from(this.m.HEAP32.subarray(base, base + 6));
+    } finally {
+      this.m._splat_free(out);
+    }
+  }
+
+  /**
+   * Single TX->target link analysis (issue #14): the same ITM model the
+   * coverage sweep uses, over the full great-circle profile to one point.
+   * Does not touch the page rasters, so it is safe before or after a sweep.
+   * Terrain pages the path crosses must be loaded first (unloaded = sea level).
+   */
+  pointToPoint(dstLatDeg: number, dstLonDeg: number, dstAltFeet: number): LinkResult {
+    const out = this.m._splat_malloc(5 * 8);
+    if (!out) throw new EngineError(-1, 'splat_malloc');
+    try {
+      const n = check(
+        this.m._splat_point_to_point(this.handle, dstLatDeg, dstLonDeg, dstAltFeet, out),
+        'splat_point_to_point'
+      );
+      // Re-read the heap view: the call may have grown wasm memory.
+      let v = this.m.HEAPF64;
+      const base = out >> 3;
+      const result: LinkResult = {
+        lossDb: v[base],
+        dbm: v[base + 1],
+        distanceKm: v[base + 2],
+        azimuthDeg: v[base + 3],
+        itmErrno: v[base + 4],
+        profile: [],
+      };
+      const pptr = this.m._splat_p2p_profile_ptr(this.handle);
+      if (pptr) {
+        v = this.m.HEAPF64;
+        const pb = pptr >> 3;
+        for (let i = 0; i < n; i++)
+          result.profile.push({ distanceKm: v[pb + 2 * i], groundM: v[pb + 2 * i + 1] });
+      }
+      return result;
     } finally {
       this.m._splat_free(out);
     }

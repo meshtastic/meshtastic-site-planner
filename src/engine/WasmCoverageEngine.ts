@@ -11,7 +11,14 @@
 import createSplatModule from './generated/splat_driver.mjs';
 import wasmUrl from './generated/splat_driver.wasm?url';
 import type { SplatModule } from './generated/splat_driver.mjs';
-import { EngineContext, type EngineRunParams, type PageRef, type RegionInfo } from './core';
+import {
+  EngineContext,
+  type EngineRunParams,
+  type LinkResult,
+  type LinkTarget,
+  type PageRef,
+  type RegionInfo,
+} from './core';
 import type {
   CoverageEngine,
   CoverageProgress,
@@ -63,6 +70,40 @@ export function defaultPoolSize(): number {
 interface PoolWorker {
   worker: Worker;
   handler: ((msg: FromWorker) => void) | null;
+}
+
+export interface LinkRunOptions {
+  terrain: import('../terrain/TerrainService').TerrainProvider;
+  signal?: AbortSignal;
+}
+
+function pageKey(ref: PageRef): string {
+  return `${ref.minNorth}:${ref.minWest}`;
+}
+
+/** West-positive floor longitude, matching splat_create's LoadQTH convention
+ * (so a key built here matches a PageRef the engine reports). */
+function westPositiveFloor(lonSigned: number): number {
+  let wp = lonSigned < 0 ? -lonSigned : 360 - lonSigned;
+  if (wp < 0) wp += 360;
+  return Math.floor(wp);
+}
+
+/** Integer-degree page keys the straight TX->target segment crosses, sampled
+ * far finer than the 1-degree page grid so no crossed page is missed. Linear
+ * lat/lon interpolation suffices: great-circle vs rhumb divergence is well
+ * under a page over LoRa link distances. Antimeridian-spanning links are not
+ * handled (vanishingly rare for this use). */
+function pagesAlongPath(lat1: number, lon1: number, lat2: number, lon2: number): Set<string> {
+  const set = new Set<string>();
+  const samples = 512;
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const lat = lat1 + (lat2 - lat1) * t;
+    const lon = lon1 + (lon2 - lon1) * t;
+    set.add(`${Math.floor(lat)}:${westPositiveFloor(lon)}`);
+  }
+  return set;
 }
 
 export class WasmCoverageEngine implements CoverageEngine {
@@ -262,6 +303,44 @@ export class WasmCoverageEngine implements CoverageEngine {
       };
     } finally {
       this.busy = false;
+    }
+  }
+
+  /**
+   * Single point-to-point link query (issue #14). Runs on the main thread
+   * (one fast ITM path, no worker pool) and fetches only the terrain pages the
+   * TX->target path crosses, so it is cheap even for a long link.
+   */
+  async runLink(
+    params: EngineRunParams,
+    target: LinkTarget,
+    opts: LinkRunOptions
+  ): Promise<LinkResult> {
+    if (this.disposed) throw new Error('engine disposed');
+    opts.signal?.throwIfAborted();
+    const m = await this.getModule();
+    const ctx = EngineContext.create(m, params);
+    try {
+      const refs = ctx.pages();
+      const wanted = pagesAlongPath(params.lat, params.lon, target.lat, target.lon);
+      const pages = await Promise.all(
+        refs.map((ref) =>
+          wanted.has(pageKey(ref))
+            ? opts.terrain.getPage(ref, {
+                signal: opts.signal,
+                ippd: params.resolutionIppd,
+              })
+            : Promise.resolve(null)
+        )
+      );
+      opts.signal?.throwIfAborted();
+      for (let i = 0; i < refs.length; i++) {
+        const data = pages[i];
+        if (data) ctx.loadPage(i, data);
+      }
+      return ctx.pointToPoint(target.lat, target.lon, target.altFeet);
+    } finally {
+      ctx.destroy();
     }
   }
 
