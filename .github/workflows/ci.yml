@@ -9,17 +9,17 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -32,7 +32,7 @@ jobs:
         run: git diff --exit-code src/engine/generated
 
       - name: Cache terrain test tile
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: test/.cache
           key: srtm-test-tiles-v1
@@ -47,7 +47,7 @@ jobs:
         run: pnpm build
 
       - name: Upload site artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-dist
           path: dist
