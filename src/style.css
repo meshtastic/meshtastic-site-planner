@@ -413,6 +413,17 @@ body {
   filter: invert(0.85);
 }
 
+/* Centre the inline-SVG icons in our custom controls (basemap switcher,
+ * export). MapLibre only centres its own background-image glyphs, and its
+ * `.maplibregl-ctrl-group button { display: block }` out-specifies a plain
+ * `.mt-basemap-toggle { display: flex }`, so the block SVG otherwise sits
+ * flush-left (~5.5px off-centre in the 29px button). */
+.maplibregl-ctrl-group button:has(> svg) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .maplibregl-ctrl button.maplibregl-ctrl-geolocate-active .maplibregl-ctrl-icon,
 .maplibregl-ctrl button.maplibregl-ctrl-geolocate-background .maplibregl-ctrl-icon {
   filter: none; /* keep the active-state blue legible */
