@@ -311,7 +311,9 @@ const useStore = defineStore('store', {
         zoom: 9,
         // Needed so the export control can read the WebGL canvas.
         canvasContextAttributes: { preserveDrawingBuffer: true },
-        attributionControl: { compact: false },
+        // Default attribution disabled; added explicitly below at bottom-left
+        // (the right sidebar would otherwise cover a bottom-right control).
+        attributionControl: false,
       });
 
       map.addControl(new SearchControl(), 'top-left');
@@ -333,6 +335,11 @@ const useStore = defineStore('store', {
         }),
         'bottom-left'
       );
+      // Compact (collapsed to an "i" that expands on click) so the required
+      // per-basemap credits — e.g. Stamen Terrain needs four — don't crowd the
+      // map. Bottom-left keeps it in the map's always-visible area, clear of
+      // the right sidebar. Credits are already per-selected-basemap.
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
       // Apply the default basemap and (re-)add overlays once the empty
       // style is ready.

@@ -24,12 +24,37 @@ export function loadCase(name: string): CoverageRequest {
   ) as CoverageRequest;
 }
 
-/** Raw .s16 terrain page (SDF cell order) or null when missing (ocean). */
+const PAGE_CELLS = 1200 * 1200;
+const _pageCache = new Map<string, Int16Array | null>();
+
+/**
+ * Terrain page (1200x1200 int16, SDF cell order) for an engine PageRef, or
+ * null when no fixture exists (treated as ocean/sea-level by the engine).
+ *
+ * Derived from the committed `.sdf.gz` fixtures in test/fixtures/terrain/
+ * (named minlat:maxlat:minwest:maxwest) rather than pre-unpacked `.s16`
+ * blobs, so CI needs no extra setup and the repo stays lean. These are the
+ * same SDF files the golden engine output was generated from, so the
+ * terrain is byte-identical to what produced the goldens.
+ */
 export function loadPageData(ref: PageRef): Int16Array | null {
-  const path = join(FIXTURES, 'terrain.s16', `page_${ref.minNorth}_${ref.minWest}.s16`);
-  if (!existsSync(path)) return null;
-  const buf = readFileSync(path);
-  return new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2);
+  const maxNorth = ref.minNorth + 1;
+  const maxWest = (ref.minWest + 1) % 360; // 359 -> 0 wrap
+  const name = `${ref.minNorth}:${maxNorth}:${ref.minWest}:${maxWest}.sdf.gz`;
+  if (_pageCache.has(name)) return _pageCache.get(name)!;
+
+  const file = join(FIXTURES, 'terrain', name);
+  if (!existsSync(file)) {
+    _pageCache.set(name, null);
+    return null;
+  }
+  // SDF: 4 header lines (max_west, min_north, min_west, max_north) then
+  // 1200*1200 integer elevation lines in SDF cell order.
+  const lines = gunzipSync(readFileSync(file)).toString('ascii').split('\n');
+  const page = new Int16Array(PAGE_CELLS);
+  for (let i = 0; i < PAGE_CELLS; i++) page[i] = Number(lines[4 + i]);
+  _pageCache.set(name, page);
+  return page;
 }
 
 export interface EngineGolden {
