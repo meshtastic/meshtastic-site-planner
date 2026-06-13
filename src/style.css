@@ -429,6 +429,12 @@ body {
   filter: none; /* keep the active-state blue legible */
 }
 
+/* Active state for our toggle controls (the measure/ruler tool). */
+.maplibregl-ctrl button.mt-ctrl-active {
+  background: var(--mt-primary);
+  color: var(--mt-on-primary);
+}
+
 .maplibregl-ctrl-scale {
   background: rgba(26, 27, 38, 0.7);
   color: var(--mt-on-surface);

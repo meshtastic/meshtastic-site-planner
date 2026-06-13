@@ -1,6 +1,39 @@
-/* Small custom MapLibre controls: basemap switcher and PNG export. */
+/* Small custom MapLibre controls: basemap switcher, PNG export, ruler. */
 
 import type { IControl, Map as MlMap } from 'maplibre-gl';
+
+/** Toggle button for the measure/ruler tool (#15). State lives in the store;
+ * setActive() keeps the button highlight in sync (e.g. when Esc exits). */
+export class MeasureControl implements IControl {
+  private container?: HTMLElement;
+  private button?: HTMLButtonElement;
+
+  constructor(private readonly onToggle: () => void) {}
+
+  onAdd(): HTMLElement {
+    const div = document.createElement('div');
+    div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.title = 'Measure distance';
+    button.setAttribute('aria-label', 'Measure distance');
+    button.innerHTML =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg>';
+    button.onclick = () => this.onToggle();
+    div.appendChild(button);
+    this.button = button;
+    this.container = div;
+    return div;
+  }
+
+  setActive(active: boolean): void {
+    this.button?.classList.toggle('mt-ctrl-active', active);
+  }
+
+  onRemove(): void {
+    this.container?.remove();
+  }
+}
 
 /** Radio-style basemap switcher (replaces Leaflet's layers control). */
 export class BasemapControl implements IControl {

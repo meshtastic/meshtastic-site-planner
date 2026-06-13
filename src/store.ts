@@ -6,7 +6,7 @@ import { type Site, type SplatParams } from './types.ts';
 import { cloneObject } from './utils.ts';
 import { draftPinElement, sitePinElement, targetPinElement } from './layers.ts';
 import { BASEMAPS, DEFAULT_BASEMAP, applyBasemap, emptyStyle } from './map/styles.ts';
-import { BasemapControl, ExportControl } from './map/controls.ts';
+import { BasemapControl, ExportControl, MeasureControl } from './map/controls.ts';
 import { SearchControl } from './map/search.ts';
 import { coverageImage, cropToRadius } from './map/overlay.ts';
 import { coverageContours } from './map/contours.ts';
@@ -37,6 +37,12 @@ let linkEscHandler: ((e: KeyboardEvent) => void) | undefined;
 let linkClickHandler: ((e: maplibregl.MapMouseEvent) => void) | undefined;
 let linkAbort: AbortController | undefined;
 const LINK_LINE_ID = 'mt-p2p-link';
+// Measure/ruler tool (#15).
+let measureControl: MeasureControl | undefined;
+let measureClickHandler: ((e: maplibregl.MapMouseEvent) => void) | undefined;
+let measureEscHandler: ((e: KeyboardEvent) => void) | undefined;
+let measureA: { lat: number; lon: number } | null = null;
+const MEASURE_SRC = 'mt-measure';
 
 /** Wrap a longitude into [-180, 180). */
 function wrapLon(lon: number): number {
@@ -53,6 +59,17 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** Initial great-circle bearing from A to B, degrees (0 = north, clockwise). */
+function bearingDeg(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δλ = toRad(lon2 - lon1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 function getEngine(): WasmCoverageEngine {
@@ -190,6 +207,9 @@ const useStore = defineStore('store', {
       splatParams: initialParams(),
       /** Transient "Copied!" feedback for the share button (#9). */
       shareCopied: false,
+      /** Measure/ruler tool (#15). */
+      measureMode: false,
+      measureResult: null as { distanceKm: number; bearingDeg: number } | null,
     }
   },
   actions: {
@@ -405,11 +425,20 @@ const useStore = defineStore('store', {
           });
         }
       };
-      // Updating an existing source/layer is safe anytime; only adding one
-      // needs the style loaded (a streaming raster basemap rarely reports
-      // isStyleLoaded, so don't gate the recolor behind it).
-      if (map.getSource(LINK_LINE_ID) || map.isStyleLoaded()) draw();
-      else map.once('idle', draw);
+      // addSource/addLayer succeed once the style spec is parsed (even while
+      // tiles stream and isStyleLoaded() is false); only the brief initial
+      // load / a basemap switch can throw, so try now and retry on idle.
+      try {
+        draw();
+      } catch {
+        map.once('idle', () => {
+          try {
+            draw();
+          } catch {
+            /* ignore */
+          }
+        });
+      }
     },
 
     /* ---- Find highpoint (#39) ---- */
@@ -468,6 +497,117 @@ const useStore = defineStore('store', {
       if (decodeSharedHash()) {
         saveParams(this.splatParams);
         clearSharedHash();
+      }
+    },
+
+    /* ---- Measure / ruler tool (#15) ---- */
+    toggleMeasure() {
+      if (this.measureMode) {
+        this.endMeasure();
+        return;
+      }
+      this.cancelPlaceOnMap();
+      this.cancelPlaceTarget();
+      this.measureMode = true;
+      this.measureResult = null;
+      measureA = null;
+      measureControl?.setActive(true);
+      if (map) map.getCanvas().style.cursor = 'crosshair';
+      measureClickHandler = (e: maplibregl.MapMouseEvent) => {
+        const lat = e.lngLat.lat;
+        const lon = wrapLon(e.lngLat.lng);
+        if (!measureA) {
+          measureA = { lat, lon };
+          this.measureResult = null;
+          this.drawMeasure(measureA, null);
+        } else {
+          const b = { lat, lon };
+          this.measureResult = {
+            distanceKm: haversineKm(measureA.lat, measureA.lon, b.lat, b.lon),
+            bearingDeg: bearingDeg(measureA.lat, measureA.lon, b.lat, b.lon),
+          };
+          this.drawMeasure(measureA, b);
+          measureA = null; // next click starts a new measurement
+        }
+      };
+      map?.on('click', measureClickHandler);
+      measureEscHandler = (ev: KeyboardEvent) => {
+        if (ev.key === 'Escape') this.endMeasure();
+      };
+      window.addEventListener('keydown', measureEscHandler);
+    },
+    endMeasure() {
+      this.measureMode = false;
+      this.measureResult = null;
+      measureA = null;
+      measureControl?.setActive(false);
+      if (map) map.getCanvas().style.cursor = '';
+      if (measureClickHandler) {
+        map?.off('click', measureClickHandler);
+        measureClickHandler = undefined;
+      }
+      if (measureEscHandler) {
+        window.removeEventListener('keydown', measureEscHandler);
+        measureEscHandler = undefined;
+      }
+      if (map?.getLayer(`${MEASURE_SRC}-line`)) map.removeLayer(`${MEASURE_SRC}-line`);
+      if (map?.getLayer(`${MEASURE_SRC}-pts`)) map.removeLayer(`${MEASURE_SRC}-pts`);
+      if (map?.getSource(MEASURE_SRC)) map.removeSource(MEASURE_SRC);
+    },
+    drawMeasure(a: { lat: number; lon: number } | null, b: { lat: number; lon: number } | null) {
+      if (!map) return;
+      const features: GeoJSON.Feature[] = [];
+      if (a) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [a.lon, a.lat] }, properties: {} });
+      if (b) features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [b.lon, b.lat] }, properties: {} });
+      if (a && b)
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: [[a.lon, a.lat], [b.lon, b.lat]] },
+          properties: {},
+        });
+      const fc: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features };
+      const draw = () => {
+        if (!map) return;
+        const src = map.getSource(MEASURE_SRC) as maplibregl.GeoJSONSource | undefined;
+        if (src) {
+          src.setData(fc);
+          return;
+        }
+        map.addSource(MEASURE_SRC, { type: 'geojson', data: fc });
+        map.addLayer({
+          id: `${MEASURE_SRC}-line`,
+          type: 'line',
+          source: MEASURE_SRC,
+          filter: ['==', ['geometry-type'], 'LineString'],
+          layout: { 'line-cap': 'round' },
+          paint: { 'line-color': '#67ea94', 'line-width': 2.5, 'line-dasharray': [2, 1.5] },
+        });
+        map.addLayer({
+          id: `${MEASURE_SRC}-pts`,
+          type: 'circle',
+          source: MEASURE_SRC,
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-radius': 4,
+            'circle-color': '#67ea94',
+            'circle-stroke-color': '#0f1017',
+            'circle-stroke-width': 2,
+          },
+        });
+      };
+      // addSource/addLayer succeed once the style spec is parsed (even while
+      // tiles stream and isStyleLoaded() is false); only the brief initial
+      // load / a basemap switch can throw, so try now and retry on idle.
+      try {
+        draw();
+      } catch {
+        map.once('idle', () => {
+          try {
+            draw();
+          } catch {
+            /* ignore */
+          }
+        });
       }
     },
 
@@ -597,6 +737,8 @@ const useStore = defineStore('store', {
         'bottom-left'
       );
       map.addControl(new ExportControl(), 'bottom-left');
+      measureControl = new MeasureControl(() => this.toggleMeasure());
+      map.addControl(measureControl, 'bottom-left');
       map.addControl(
         new BasemapControl(Object.keys(BASEMAPS), DEFAULT_BASEMAP, (name) => {
           // Swap the basemap raster source/layers in place (keeps overlays,
@@ -623,7 +765,7 @@ const useStore = defineStore('store', {
       // the live coverage fill layers each click keeps it correct as sites
       // are added/removed; ignored while placing a transmitter.
       map.on('click', (e: maplibregl.MapMouseEvent) => {
-        if (!map || this.placingMode || this.overlayStyle !== 'contours') return;
+        if (!map || this.placingMode || this.measureMode || this.overlayStyle !== 'contours') return;
         const layerIds = this.localSites
           .map((s) => `coverage-${s.id}`)
           .filter((id) => map!.getLayer(id));
@@ -643,7 +785,7 @@ const useStore = defineStore('store', {
       });
       map.on('mousemove', (e: maplibregl.MapMouseEvent) => {
         // Leave the cursor alone while placing (crosshair) or in heatmap mode.
-        if (!map || this.placingMode || this.overlayStyle !== 'contours') return;
+        if (!map || this.placingMode || this.measureMode || this.overlayStyle !== 'contours') return;
         const layerIds = this.localSites
           .map((s) => `coverage-${s.id}`)
           .filter((id) => map!.getLayer(id));

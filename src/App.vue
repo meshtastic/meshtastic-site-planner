@@ -150,6 +150,12 @@
       <span><span class="mt-place-dot mt-place-dot-target"></span>Click the map to place the link target</span>
       <button type="button" class="mt-place-cancel" @click="store.cancelPlaceTarget()">Cancel (Esc)</button>
     </div>
+
+    <div v-if="store.measureMode" class="mt-place-hint" role="status">
+      <span v-if="store.measureResult"><span class="mt-place-dot"></span>{{ store.measureResult.distanceKm.toFixed(2) }} km · {{ Math.round(store.measureResult.bearingDeg) }}&deg; — click to measure again</span>
+      <span v-else><span class="mt-place-dot"></span>Click two points to measure distance</span>
+      <button type="button" class="mt-place-cancel" @click="store.endMeasure()">Done (Esc)</button>
+    </div>
   </div>
 </template>
 
