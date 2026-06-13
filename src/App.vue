@@ -107,9 +107,14 @@
         <div v-if="store.localSites.length" class="mt-4">
           <div class="mt-sites-heading mb-2">Simulated sites</div>
           <ul class="list-group mt-site-list">
-            <li class="list-group-item" v-for="(site, index) in store.$state.localSites" :key="site.id">
+            <li class="list-group-item" :class="{ 'mt-site-hidden': !site.visible }" v-for="(site, index) in store.$state.localSites" :key="site.id">
+              <button type="button" class="mt-site-eye" @click="store.toggleSiteVisibility(index)"
+                :title="site.visible ? 'Hide coverage' : 'Show coverage'" :aria-pressed="site.visible">
+                <svg v-if="site.visible" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.6 6.6A13.1 13.1 0 0 0 2 12s3.5 7 10 7a9 9 0 0 0 5.4-1.6"/><path d="m2 2 20 20"/></svg>
+              </button>
               <button type="button" class="mt-site-link text-truncate" @click="store.focusSite(index)" :title="`Go to ${site.params.transmitter.name}`">
-                <span class="mt-site-dot" aria-hidden="true"></span>{{ site.params.transmitter.name }}
+                <span class="mt-site-dot" :style="{ background: siteColor(site) }" aria-hidden="true"></span>{{ site.params.transmitter.name }}
               </button>
               <button type="button" @click="store.removeSite(index)" class="btn-close" :aria-label="`Remove ${site.params.transmitter.name}`"></button>
             </li>
@@ -137,7 +142,16 @@ import Simulation from "./components/Simulation.vue"
 import Display from "./components/Display.vue"
 
 import { useStore } from './store.ts'
+import type { Site } from './types.ts'
+import { colormapLut } from './render/colormaps.ts'
 const store = useStore()
+// Each site keeps its own color scale (#17); show a swatch matching its
+// overlay so sites are distinguishable in the list.
+const siteColor = (site: Site) => {
+  const lut = colormapLut(site.params.display.color_scale)
+  const i = 192 * 3 // a vivid representative sample of the colormap
+  return `rgb(${lut[i]}, ${lut[i + 1]}, ${lut[i + 2]})`
+}
 const buttonText = () => {
   if ('running' === store.simulationState) {
     return 'Running'

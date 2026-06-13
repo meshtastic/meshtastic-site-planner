@@ -14,6 +14,15 @@ const CARTO_ATTR =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 const ESRI_IMG_ATTR =
   'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics';
+const ESRI_TOPO_ATTR =
+  'Tiles &copy; Esri &mdash; Esri, USGS, NGA, NASA, & the GIS community';
+const STADIA_ATTR =
+  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; OpenStreetMap contributors';
+
+// Stadia (Stamen) tiles are keyless on localhost; production needs a free
+// API key (or a domain allowlisted in the Stadia dashboard). Set
+// VITE_STADIA_API_KEY at build time to embed a key.
+const STADIA_KEY = import.meta.env.VITE_STADIA_API_KEY;
 
 function cartoTiles(style: string): string[] {
   return ['a', 'b', 'c', 'd'].map(
@@ -27,6 +36,13 @@ function esriTiles(service: string): string[] {
   ];
 }
 
+function stadiaTiles(style: string): string[] {
+  const suffix = STADIA_KEY ? `?api_key=${STADIA_KEY}` : '';
+  // Retina @2x tiles (512px) for crispness. NB: MapLibre has no '{r}'
+  // retina token (that's Leaflet) — it would be sent literally and 404.
+  return [`https://tiles.stadiamaps.com/tiles/${style}/{z}/{x}/{y}@2x.png${suffix}`];
+}
+
 /** A basemap is one or more stacked raster sources (e.g. imagery + labels).
  * Each entry's id is suffixed per-basemap so multiple never collide. */
 export interface BasemapLayerSpec {
@@ -37,13 +53,15 @@ export const BASEMAPS: Record<string, BasemapLayerSpec[]> = {
   Dark: [{ source: raster(cartoTiles('dark_all'), 512, CARTO_ATTR) }],
   Streets: [{ source: raster(cartoTiles('rastertiles/voyager'), 512, CARTO_ATTR) }],
   Light: [{ source: raster(cartoTiles('light_all'), 512, CARTO_ATTR) }],
+  // Shaded-relief terrain (Stadia Stamen): keyless on localhost, needs a
+  // key/domain allowlist in production. The no-key "Topographic" below is
+  // the always-available terrain fallback.
+  Terrain: [{ source: raster(stadiaTiles('stamen_terrain'), 512, STADIA_ATTR, 18) }],
+  // No-key colored topographic with terrain shading (Esri).
+  Topographic: [{ source: raster(esriTiles('World_Topo_Map'), 256, ESRI_TOPO_ATTR, 19) }],
   Satellite: [
     { source: raster(esriTiles('World_Imagery'), 256, ESRI_IMG_ATTR, 19) },
     { source: raster(esriTiles('Reference/World_Boundaries_and_Places'), 256, 'Labels &copy; Esri', 19) },
-  ],
-  Terrain: [
-    { source: raster(esriTiles('Elevation/World_Hillshade'), 256, 'Hillshade &copy; Esri &mdash; Source: USGS, NASA SRTM', 16) },
-    { source: raster(cartoTiles('rastertiles/voyager_only_labels'), 512, CARTO_ATTR) },
   ],
 };
 

@@ -36,6 +36,11 @@ dist
 dist-ssr
 *.local
 
+# Env files may hold API keys — never commit (except the template).
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

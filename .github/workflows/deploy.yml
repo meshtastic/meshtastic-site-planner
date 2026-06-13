@@ -42,6 +42,11 @@ jobs:
 
       - name: Build site
         run: pnpm build
+        env:
+          # Optional: add a STADIA_API_KEY repo secret (Settings → Secrets and
+          # variables → Actions) to enable the Stadia "Terrain" basemap in
+          # production. Without it, the no-key "Topographic" terrain still works.
+          VITE_STADIA_API_KEY: ${{ secrets.STADIA_API_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

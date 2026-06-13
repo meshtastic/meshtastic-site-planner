@@ -6,6 +6,8 @@ export interface Site {
     id: string;
     /** Cropped engine output; rendered via src/map/overlay.ts. */
     result: CoverageResult;
+    /** Whether this site's overlay + marker are shown (#61). */
+    visible: boolean;
 }
 export interface SplatParams {
     transmitter: {

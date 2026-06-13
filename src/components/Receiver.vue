@@ -16,7 +16,7 @@
             </div>
             <div class="row g-2 mt-2">
                 <div class="col-6">
-                <label for="rx_gain" class="form-label">Antenna Gain (dB)</label>
+                <label for="rx_gain" class="form-label">Antenna Gain (dBi)</label>
                 <input v-model="receiver.rx_gain" type="number" class="form-control form-control-sm" id="rx_gain" required min="0" max="30" step="0.1" />
                 <div class="invalid-feedback">Gain must be a positive number.</div>
             </div>

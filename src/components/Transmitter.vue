@@ -39,7 +39,7 @@
                 <div class="invalid-feedback">Height must be a positive number.</div>
             </div>
             <div class="col-6">
-                <label for="tx_gain" class="form-label">Antenna Gain (dB)</label>
+                <label for="tx_gain" class="form-label">Antenna Gain (dBi)</label>
                 <input v-model="transmitter.tx_gain" type="number" class="form-control form-control-sm" id="tx_gain" required min="0" step="0.1" />
                 <div class="invalid-feedback">Gain must be a positive number.</div>
             </div>

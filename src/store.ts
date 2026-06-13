@@ -10,6 +10,7 @@ import { BasemapControl, ExportControl } from './map/controls.ts';
 import { SearchControl } from './map/search.ts';
 import { coverageImage, cropToRadius } from './map/overlay.ts';
 import { coverageContours } from './map/contours.ts';
+import { exportGeoJSON, exportKml, exportPngWorldFile } from './map/export.ts';
 import { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest } from './engine/params.ts';
@@ -37,18 +38,36 @@ function getTerrain(): TerrainService {
   return terrain;
 }
 
-function sitePopupHtml(p: SplatParams): string {
-  const t = p.transmitter;
+/** Map popup DOM for a simulated site: parameters + georeferenced export
+ * buttons (#64). Built as a DOM element so the export buttons can be wired
+ * directly. */
+function buildSitePopup(site: Site): HTMLElement {
+  const t = site.params.transmitter;
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
-  return `
-    <div class="mt-popup">
-      <div class="mt-popup-title">${esc(t.name)}</div>
-      <div class="mt-popup-row"><span>Frequency</span><span>${t.tx_freq} MHz</span></div>
-      <div class="mt-popup-row"><span>Power</span><span>${t.tx_power} W</span></div>
-      <div class="mt-popup-row"><span>Antenna height</span><span>${t.tx_height} m</span></div>
-      <div class="mt-popup-row"><span>Max range</span><span>${p.simulation.simulation_extent} km</span></div>
+  const el = document.createElement('div');
+  el.className = 'mt-popup';
+  el.innerHTML = `
+    <div class="mt-popup-title">${esc(t.name)}</div>
+    <div class="mt-popup-row"><span>Frequency</span><span>${t.tx_freq} MHz</span></div>
+    <div class="mt-popup-row"><span>Power</span><span>${t.tx_power} W</span></div>
+    <div class="mt-popup-row"><span>Antenna height</span><span>${t.tx_height} m</span></div>
+    <div class="mt-popup-row"><span>Max range</span><span>${site.params.simulation.simulation_extent} km</span></div>
+    <div class="mt-popup-export">
+      <span>Export</span>
+      <button type="button" data-fmt="geojson">GeoJSON</button>
+      <button type="button" data-fmt="png">PNG</button>
+      <button type="button" data-fmt="kml">KML</button>
     </div>`;
+  el.querySelectorAll<HTMLButtonElement>('button[data-fmt]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const fmt = b.dataset.fmt;
+      if (fmt === 'geojson') exportGeoJSON(site);
+      else if (fmt === 'png') void exportPngWorldFile(site);
+      else if (fmt === 'kml') void exportKml(site);
+    })
+  );
+  return el;
 }
 
 /** The legacy /predict payload shape, now consumed locally. */
@@ -200,6 +219,15 @@ const useStore = defineStore('store', {
         if (map) this.removeOverlay(removed.id);
       }
     },
+    /** Show/hide one site's overlay + marker (#61). */
+    toggleSiteVisibility(index: number) {
+      const site = this.localSites[index];
+      if (!site) return;
+      site.visible = !site.visible;
+      const el = siteMarkers.get(site.id)?.getElement();
+      if (el) el.style.display = site.visible ? '' : 'none';
+      this.syncOverlays();
+    },
     /** Remove every layer/source for one site's overlay (either style). */
     removeOverlay(siteId: string) {
       if (!map) return;
@@ -228,6 +256,7 @@ const useStore = defineStore('store', {
       this.localSites.forEach((site: Site) => {
         const id = `coverage-${site.id}`;
         this.removeOverlay(site.id);
+        if (site.visible === false) return; // hidden via the site-list toggle
         const opacity = 1 - site.params.display.overlay_transparency / 100;
 
         if (this.overlayStyle === 'contours') {
@@ -409,14 +438,15 @@ const useStore = defineStore('store', {
         const cropped = cropToRadius(result, request.lat, request.lon, request.radius);
         const siteParams = cloneObject(this.splatParams);
         const id = crypto.randomUUID();
-        this.localSites.push({ params: siteParams, id, result: cropped });
+        const site: Site = { params: siteParams, id, result: cropped, visible: true };
+        this.localSites.push(site);
 
         // The draft pin becomes a persistent, labeled site marker.
         this.cancelPlaceOnMap();
         this.clearDraftMarker();
         if (map) {
-          const popup = new maplibregl.Popup({ closeButton: false, offset: 46 })
-            .setHTML(sitePopupHtml(siteParams));
+          const popup = new maplibregl.Popup({ closeButton: true, offset: 46 })
+            .setDOMContent(buildSitePopup(site));
           const marker = new maplibregl.Marker({ element: sitePinElement(), anchor: 'bottom' })
             .setLngLat([request.lon, request.lat])
             .setPopup(popup)
