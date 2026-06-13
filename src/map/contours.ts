@@ -29,6 +29,10 @@ export interface ContourOptions {
   /** Contour at most this many cells on the long axis (default 900);
    * larger grids are block-averaged down first to bound cost + size. */
   maxDimension?: number;
+  /** Box-blur radius (in grid cells) applied to the field before contouring.
+   * Rounds the marching-squares stair-steps into smooth curves. 0 disables;
+   * default 1. Bands stay nested because they derive from one smoothed field. */
+  smoothing?: number;
 }
 
 interface PreparedGrid {
@@ -75,6 +79,38 @@ function prepareGrid(result: CoverageResult, maxDimension: number, sentinel: num
   return { values, width: w, height: h };
 }
 
+/** Separable box blur (radius r, `passes` passes ≈ a Gaussian) over a w×h
+ * grid; border samples clamp to the edge. Never mutates the input. */
+function blurGrid(src: Float64Array, w: number, h: number, r: number, passes: number): Float64Array {
+  const win = 2 * r + 1;
+  let cur = Float64Array.from(src);
+  const tmp = new Float64Array(src.length);
+  for (let p = 0; p < passes; p++) {
+    for (let y = 0; y < h; y++) {
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) {
+          const xx = x + k < 0 ? 0 : x + k >= w ? w - 1 : x + k;
+          sum += cur[row + xx];
+        }
+        tmp[row + x] = sum / win;
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) {
+          const yy = y + k < 0 ? 0 : y + k >= h ? h - 1 : y + k;
+          sum += tmp[yy * w + x];
+        }
+        cur[y * w + x] = sum / win;
+      }
+    }
+  }
+  return cur;
+}
+
 /**
  * Coverage as GeoJSON iso-bands. Each feature is the region where the
  * received signal is ≥ that band's dBm level (nested, strongest last so
@@ -85,19 +121,27 @@ export function coverageContours(result: CoverageResult, opts: ContourOptions): 
   const bands = opts.bands ?? 12;
   const floor = Math.max(opts.minDbm, opts.sensitivityDbm);
   const ceil = opts.maxDbm;
-  const sentinel = opts.minDbm - 100;
 
   // Ascending thresholds from the coverage floor up to maxDbm.
   const span = ceil > floor ? ceil - floor : 1;
   const levels: number[] = [];
   for (let i = 0; i < bands; i++) levels.push(floor + (span * i) / bands);
 
+  // No-data sits just below the lowest band (not far below it) so the
+  // pre-contour blur feathers the coverage edge smoothly instead of the old
+  // very-negative sentinel dragging nearby signal down across the threshold.
+  const sentinel = floor - Math.max(6, span / bands);
   const grid = prepareGrid(result, opts.maxDimension ?? 900, sentinel);
+
+  // Smooth the field before contouring so the iso-bands are curved rather than
+  // following the grid in stair-steps. One smoothed field keeps bands nested.
+  const radius = Math.round(opts.smoothing ?? 1);
+  const field = radius >= 1 ? blurGrid(grid.values, grid.width, grid.height, radius, 3) : grid.values;
   const polys = d3contours()
     .size([grid.width, grid.height])
     // d3-contour types want number[], but only index the array at runtime;
     // a typed array is fine and avoids a copy.
-    .thresholds(levels)(grid.values as unknown as number[]);
+    .thresholds(levels)(field as unknown as number[]);
 
   const lut = colormapLut(opts.colorScale);
   const colorSpan = opts.maxDbm > opts.minDbm ? opts.maxDbm - opts.minDbm : 1;
