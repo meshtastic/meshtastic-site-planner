@@ -21,6 +21,16 @@
             </div>
         </div>
         <div class="row g-2 mt-2">
+            <div class="col-12">
+                <label for="device" class="form-label">Device (optional)</label>
+                <select v-model="selectedDevice" @change="applyDevice" class="form-select form-select-sm" id="device" data-bs-toggle="tooltip" title="Prefill power and stock-antenna gain from a common Meshtastic device.">
+                    <option value="">Custom / manual</option>
+                    <option v-for="(d, i) in DEVICE_PROFILES" :key="i" :value="i">{{ d.label }}</option>
+                </select>
+                <p class="mt-section-hint mt-1 mb-0">Fills typical power &amp; stock-antenna gain. Tune for your antenna and region.</p>
+            </div>
+        </div>
+        <div class="row g-2 mt-2">
             <div class="col-6">
                 <label for="tx_power" class="form-label">Power (W)</label>
                 <input v-model="transmitter.tx_power" type="number" class="form-control form-control-sm" id="tx_power" required min="0" step="0.1" data-bs-toggle="tooltip" title="Transmitter power in watts (>0)." />
@@ -58,9 +68,31 @@
 
 <script setup lang="ts">
     import { useStore } from '../store.ts'
-    import { onMounted, watch } from 'vue';
+    import { onMounted, watch, ref } from 'vue';
+    import { DEVICE_PROFILES } from '../deviceProfiles';
     const store = useStore();
     const transmitter = store.splatParams.transmitter;
+
+    // Optional device quick-fill (#51): selecting a radio prefills power + gain.
+    const selectedDevice = ref<number | ''>('');
+    function applyDevice() {
+        if (selectedDevice.value === '') return;
+        const d = DEVICE_PROFILES[selectedDevice.value as number];
+        if (!d) return;
+        transmitter.tx_power = d.tx_power;
+        transmitter.tx_gain = d.tx_gain;
+    }
+
+    // If power or gain is hand-edited away from the chosen device, fall back to
+    // "Custom" so the dropdown never misrepresents the current values.
+    watch(
+        () => [Number(transmitter.tx_power), Number(transmitter.tx_gain)] as const,
+        ([p, g]) => {
+            if (selectedDevice.value === '') return;
+            const d = DEVICE_PROFILES[selectedDevice.value as number];
+            if (d && (p !== d.tx_power || g !== d.tx_gain)) selectedDevice.value = '';
+        }
+    );
 
     const centerMapOnTransmitter = () => {
         if (!isNaN(transmitter.tx_lat) && !isNaN(transmitter.tx_lon)) {
