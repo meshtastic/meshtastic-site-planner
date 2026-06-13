@@ -999,6 +999,67 @@ double *splat_p2p_profile_ptr(int handle) {
     return e->p2p_profile.data();
 }
 
+/* Highest loaded terrain cell within radius_km of the TX (issue #39): "find
+ * highpoint". Scans the loaded page grids (cell->lat/lon inverts find_page's
+ * mapping) and returns the highest cell strictly above the TX's own ground, or
+ * the TX position unchanged if nothing nearby is higher. out3 receives
+ * [lat_deg, lon_signed_deg, elevation_m]. The caller loads the pages covering
+ * the search disk first. Returns 0 or a negative SPLAT_E_* code. */
+int splat_highpoint(int handle, double radius_km, double *out3) {
+    Engine *e = get_engine(handle);
+    if (!e)
+        return SPLAT_E_BADHANDLE;
+    if (!out3 || radius_km <= 0.0)
+        return SPLAT_E_BADPARAM;
+
+    const double radius_mi = radius_km / KM_PER_MILE;
+
+    /* Baseline: the TX's own ground, so we only relocate to something higher. */
+    short best = -32768;
+    {
+        int tx_x, tx_y;
+        Page *tp = find_page(*e, e->tx.lat, e->tx.lon, tx_x, tx_y);
+        if (tp)
+            best = tp->data[tx_x * e->ippd + tx_y];
+    }
+    double best_lat = e->tx.lat;
+    double best_lon_wp = e->tx.lon;
+
+    Site cell{};
+    for (Page &p : e->pages) {
+        if (!p.data)
+            continue;
+        for (int x = 0; x <= e->mpi; x++) {
+            const double lat = p.min_north + (double)x / e->ppd;
+            const short *row = &p.data[(size_t)x * e->ippd];
+            for (int y = 0; y <= e->mpi; y++) {
+                const short m = row[y];
+                if (m <= best)
+                    continue; /* cheap reject before the great-circle test */
+                const double lon_wp =
+                    p.max_west - (double)(e->mpi - y) / e->ppd;
+                cell.lat = lat;
+                cell.lon = lon_wp;
+                if (Distance(e->tx, cell) <= radius_mi) {
+                    best = m;
+                    best_lat = lat;
+                    best_lon_wp = lon_wp;
+                }
+            }
+        }
+    }
+
+    double wp = best_lon_wp;
+    while (wp < 0.0)
+        wp += 360.0;
+    while (wp >= 360.0)
+        wp -= 360.0;
+    out3[0] = best_lat;
+    out3[1] = (wp <= 180.0) ? -wp : 360.0 - wp;
+    out3[2] = (double)best;
+    return 0;
+}
+
 void splat_destroy(int handle) {
     Engine *e = get_engine(handle);
     if (!e)

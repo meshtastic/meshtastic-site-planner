@@ -344,6 +344,39 @@ export class WasmCoverageEngine implements CoverageEngine {
     }
   }
 
+  /**
+   * Find the highest terrain point within radiusKm of the transmitter (issue
+   * #39). Runs on the main thread; loads the pages covering the search disk.
+   * `params.radiusKm` should equal the search radius so the engine region
+   * covers it.
+   */
+  async findHighpoint(
+    params: EngineRunParams,
+    radiusKm: number,
+    opts: LinkRunOptions
+  ): Promise<{ lat: number; lon: number; elevationM: number }> {
+    if (this.disposed) throw new Error('engine disposed');
+    opts.signal?.throwIfAborted();
+    const m = await this.getModule();
+    const ctx = EngineContext.create(m, params);
+    try {
+      const refs = ctx.pages();
+      const pages = await Promise.all(
+        refs.map((ref) =>
+          opts.terrain.getPage(ref, { signal: opts.signal, ippd: params.resolutionIppd })
+        )
+      );
+      opts.signal?.throwIfAborted();
+      for (let i = 0; i < refs.length; i++) {
+        const data = pages[i];
+        if (data) ctx.loadPage(i, data);
+      }
+      return ctx.highpoint(radiusKm);
+    } finally {
+      ctx.destroy();
+    }
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const pw of this.workers) pw.worker.terminate();

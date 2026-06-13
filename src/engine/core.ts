@@ -260,6 +260,24 @@ export class EngineContext {
     }
   }
 
+  /**
+   * Highest terrain point within radiusKm of the TX (issue #39). Returns the
+   * signed lat/lon and elevation (m); equals the TX when nothing nearby is
+   * higher. Pages covering the search disk must be loaded first.
+   */
+  highpoint(radiusKm: number): { lat: number; lon: number; elevationM: number } {
+    const out = this.m._splat_malloc(3 * 8);
+    if (!out) throw new EngineError(-1, 'splat_malloc');
+    try {
+      check(this.m._splat_highpoint(this.handle, radiusKm, out), 'splat_highpoint');
+      const v = this.m.HEAPF64;
+      const base = out >> 3;
+      return { lat: v[base], lon: v[base + 1], elevationM: v[base + 2] };
+    } finally {
+      this.m._splat_free(out);
+    }
+  }
+
   destroy(): void {
     if (this.handle > 0) {
       this.m._splat_destroy(this.handle);

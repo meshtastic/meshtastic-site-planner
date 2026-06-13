@@ -135,6 +135,9 @@ const useStore = defineStore('store', {
       linkAzimuthDeg: 0,
       linkState: 'idle' as 'idle' | 'placing' | 'computing' | 'done' | 'error',
       linkError: '' as string,
+      /** Find-highpoint (#39) status. */
+      highpointBusy: false,
+      highpointMessage: '' as string,
       splatParams: <SplatParams>{
         transmitter: {
           name: randanimalSync(),
@@ -392,6 +395,40 @@ const useStore = defineStore('store', {
       // isStyleLoaded, so don't gate the recolor behind it).
       if (map.getSource(LINK_LINE_ID) || map.isStyleLoaded()) draw();
       else map.once('idle', draw);
+    },
+
+    /* ---- Find highpoint (#39) ---- */
+    /** Move the transmitter to the highest terrain within radiusKm of it. */
+    async findHighpoint(radiusKm = 1) {
+      if (this.highpointBusy) return;
+      this.highpointBusy = true;
+      this.highpointMessage = '';
+      const ac = new AbortController();
+      try {
+        const request = buildCoverageRequest(this.splatParams);
+        const r = Math.max(0.2, Math.min(10, radiusKm));
+        request.radius = r * 1000; // search disk = engine region
+        request.high_resolution = false;
+        const params = toEngineParams(request);
+        const hp = await getEngine().findHighpoint(params, r, {
+          terrain: getTerrain(),
+          signal: ac.signal,
+        });
+        const movedM = haversineKm(request.lat, request.lon, hp.lat, hp.lon) * 1000;
+        if (movedM < 5) {
+          this.highpointMessage = `Already at the local high point (${Math.round(hp.elevationM)} m).`;
+        } else {
+          this.setTxCoords(Number(hp.lat.toFixed(6)), Number(hp.lon.toFixed(6)));
+          this.setDraftMarker(hp.lat, hp.lon);
+          map?.flyTo({ center: [hp.lon, hp.lat] });
+          this.highpointMessage = `Moved ${Math.round(movedM)} m to a ${Math.round(hp.elevationM)} m high point.`;
+        }
+      } catch (error) {
+        this.highpointMessage =
+          error instanceof Error ? error.message : String(error);
+      } finally {
+        this.highpointBusy = false;
+      }
     },
 
     removeSite(index: number) {

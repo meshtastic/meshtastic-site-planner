@@ -39,6 +39,7 @@ export interface SplatModule {
     out5Ptr: number
   ): number;
   _splat_p2p_profile_ptr(handle: number): number;
+  _splat_highpoint(handle: number, radiusKm: number, out3Ptr: number): number;
   _splat_destroy(handle: number): void;
   _splat_malloc(bytes: number): number;
   _splat_free(ptr: number): void;

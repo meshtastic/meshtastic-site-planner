@@ -53,6 +53,23 @@
         Center on site
       </button>
     </div>
+    <div class="mt-2 flex items-end gap-2">
+      <div class="w-24">
+        <label for="hp_radius" class="mt-label">Search km</label>
+        <input id="hp_radius" v-model.number="hpRadius" type="number" min="0.2" max="10" step="0.5" class="mt-input" title="Radius to search for higher ground." />
+      </div>
+      <button
+        type="button"
+        class="mt-btn mt-btn-secondary mt-btn-sm flex-1 whitespace-nowrap"
+        :disabled="store.highpointBusy"
+        title="Move the transmitter to the highest ground nearby."
+        @click="store.findHighpoint(hpRadius)"
+      >
+        <span v-if="store.highpointBusy" class="mt-spinner" aria-hidden="true"></span>
+        {{ store.highpointBusy ? 'Searching…' : 'Snap to highest point' }}
+      </button>
+    </div>
+    <p v-if="store.highpointMessage" class="mt-hint mt-1">{{ store.highpointMessage }}</p>
     <p class="mt-hint mt-2">Tip: drag the green pin to fine-tune, or type coordinates above.</p>
   </div>
 </template>
@@ -63,6 +80,9 @@ import { onMounted, watch, ref } from 'vue';
 import { DEVICE_PROFILES } from '../deviceProfiles';
 const store = useStore();
 const transmitter = store.splatParams.transmitter;
+
+// Find-highpoint (#39) search radius, km.
+const hpRadius = ref(1);
 
 // Optional device quick-fill (#51): selecting a radio prefills power + gain.
 const selectedDevice = ref<number | ''>('');

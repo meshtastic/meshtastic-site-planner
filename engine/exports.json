@@ -12,6 +12,7 @@
   "_splat_errnum_counts",
   "_splat_point_to_point",
   "_splat_p2p_profile_ptr",
+  "_splat_highpoint",
   "_splat_destroy",
   "_splat_malloc",
   "_splat_free"
