@@ -470,28 +470,35 @@ body {
   padding: 0.375rem;
 }
 
-.mt-basemap-item {
+/* Scoped under .mt-basemap-list so `border: 0` out-specifies MapLibre's
+ * `.maplibregl-ctrl-group button + button` top border, which otherwise draws a
+ * #ddd divider between these nested menu items. Items read as clean padded
+ * rows: hover tint, and a subtle green wash for the active basemap. */
+.mt-basemap-list .mt-basemap-item {
   display: block;
   width: 100% !important;
   height: auto !important;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4375rem 0.625rem;
   background: none;
   border: 0;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   color: var(--mt-on-surface);
   font-size: 0.8125rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.mt-basemap-item:hover {
+.mt-basemap-list .mt-basemap-item:hover {
   background: var(--mt-surface-container-highest);
 }
 
-.mt-basemap-item.active {
+.mt-basemap-list .mt-basemap-item.active {
   color: var(--mt-primary);
-  background: var(--mt-surface-container-highest);
+  background: rgba(103, 234, 148, 0.14);
 }
 
 /* ---------- Map: popups ---------- */
