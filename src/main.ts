@@ -26,3 +26,12 @@ app.mount('#app')
 // A shared permalink (#9) was applied during store init; persist it and clear
 // the hash so subsequent edits win on the next reload.
 useStore(pinia).consumeSharedLink()
+
+// Register the PWA service worker (#11) in production only, so it never
+// intercepts Vite's dev server or HMR.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {})
+  })
+}
+
