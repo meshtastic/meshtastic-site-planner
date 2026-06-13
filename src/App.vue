@@ -41,6 +41,20 @@
 
     <MapLegend />
 
+    <!-- First-run hint, shown until there's a site or it's dismissed. -->
+    <div v-if="showOnboarding" class="pointer-events-none absolute inset-x-0 top-[116px] z-[1000] flex justify-center px-4 lg:top-[72px]">
+      <div class="pointer-events-auto flex max-w-md items-start gap-3 rounded-xl border border-line bg-surface-2/95 px-4 py-3 shadow-lg">
+        <svg viewBox="0 0 24 24" class="mt-0.5 size-5 shrink-0 text-primary" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div class="text-sm">
+          <p class="font-semibold text-ink">Plan your first site</p>
+          <p class="mt-0.5 text-ink-muted">Drag the green pin (or use “Place on map”) to set your transmitter, pick a device or tune the radio, then press <span class="text-ink">Run Simulation</span>.</p>
+        </div>
+        <button type="button" class="shrink-0 text-ink-muted hover:text-ink" aria-label="Dismiss hint" @click="dismissOnboarding">
+          <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </div>
+
     <!-- Dim + dismiss on small screens only (desktop keeps the map usable). -->
     <div v-if="panelOpen" class="fixed inset-0 top-[57px] z-[999] bg-black/40 lg:hidden" @click="panelOpen = false"></div>
 
@@ -160,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Transmitter from './components/Transmitter.vue';
 import Receiver from './components/Receiver.vue';
 import Environment from './components/Environment.vue';
@@ -182,6 +196,21 @@ const panelOpen = ref(true);
 onMounted(() => {
   if (window.matchMedia('(max-width: 1023px)').matches) panelOpen.value = false;
 });
+
+// First-run hint: shown until the user has a site (or dismisses it). Dismissal
+// persists so it doesn't nag returning users.
+const onboardDismissed = ref(localStorage.getItem('mt-onboard-dismissed') === '1');
+const showOnboarding = computed(
+  () => store.localSites.length === 0 && store.simulationState !== 'running' && !onboardDismissed.value
+);
+const dismissOnboarding = () => {
+  onboardDismissed.value = true;
+  try {
+    localStorage.setItem('mt-onboard-dismissed', '1');
+  } catch {
+    /* storage unavailable */
+  }
+};
 
 // Each site keeps its own color scale (#17); show a swatch matching its
 // overlay so sites are distinguishable in the list.
