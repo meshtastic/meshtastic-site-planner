@@ -79,6 +79,18 @@
               </div>
             </div>
           </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sectionP2P" aria-expanded="false" aria-controls="sectionP2P">
+                Point-to-point link
+              </button>
+            </h2>
+            <div id="sectionP2P" class="accordion-collapse collapse">
+              <div class="accordion-body">
+                <PointToPoint />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="mt-3 d-flex gap-2">
@@ -130,6 +142,11 @@
       <span><span class="mt-place-dot"></span>Click the map to place the transmitter</span>
       <button type="button" class="mt-place-cancel" @click="store.cancelPlaceOnMap()">Cancel (Esc)</button>
     </div>
+
+    <div v-if="store.linkState === 'placing'" class="mt-place-hint" role="status">
+      <span><span class="mt-place-dot mt-place-dot-target"></span>Click the map to place the link target</span>
+      <button type="button" class="mt-place-cancel" @click="store.cancelPlaceTarget()">Cancel (Esc)</button>
+    </div>
   </div>
 </template>
 
@@ -140,6 +157,7 @@ import Receiver from "./components/Receiver.vue"
 import Environment from "./components/Environment.vue"
 import Simulation from "./components/Simulation.vue"
 import Display from "./components/Display.vue"
+import PointToPoint from "./components/PointToPoint.vue"
 
 import { useStore } from './store.ts'
 import type { Site } from './types.ts'
