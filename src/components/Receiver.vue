@@ -1,35 +1,28 @@
-
 <template>
-    <form novalidate>
-        <p class="mt-section-hint mb-2">The nodes that should hear this site (-130 dBm matches the default LongFast preset).</p>
-        <div class="row g-2">
-            <div class="col-6">
-                <label for="rx_sensitivity" class="form-label">Sensitivity (dBm)</label>
-                <input v-model="receiver.rx_sensitivity" type="number" class="form-control form-control-sm" id="rx_sensitivity" required step="1" min="-150" max="-30" />
-            <div class="invalid-feedback">Please enter a valid sensitivity.</div>
-            </div>
-                <div class="col-6">
-                <label for="rx_height" class="form-label">Height AGL (m)</label>
-                <input v-model="receiver.rx_height" type="number" class="form-control form-control-sm" id="rx_height" required min="0" step="0.1" />
-                <div class="invalid-feedback">Height must be a positive number.</div>
-                </div>
-            </div>
-            <div class="row g-2 mt-2">
-                <div class="col-6">
-                <label for="rx_gain" class="form-label">Antenna Gain (dBi)</label>
-                <input v-model="receiver.rx_gain" type="number" class="form-control form-control-sm" id="rx_gain" required min="0" max="30" step="0.1" />
-                <div class="invalid-feedback">Gain must be a positive number.</div>
-            </div>
-            <div class="col-6">
-                <label for="rx_loss" class="form-label">Cable Loss (dB)</label>
-                <input v-model="receiver.rx_loss" type="number" class="form-control form-control-sm" id="rx_loss" required min="0" max="100" step="0.1" />
-                <div class="invalid-feedback">Loss must be a positive number.</div>
-            </div>
-        </div>
-    </form>
+  <div>
+    <p class="mt-hint mb-3">The nodes that should hear this site (-130 dBm matches the default LongFast preset).</p>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label for="rx_sensitivity" class="mt-label">Sensitivity (dBm)</label>
+        <input v-model="receiver.rx_sensitivity" type="number" class="mt-input" id="rx_sensitivity" step="1" min="-150" max="-30" />
+      </div>
+      <div>
+        <label for="rx_height" class="mt-label">Height AGL (m)</label>
+        <input v-model="receiver.rx_height" type="number" class="mt-input" id="rx_height" min="0" step="0.1" />
+      </div>
+      <div>
+        <label for="rx_gain" class="mt-label">Antenna Gain (dBi)</label>
+        <input v-model="receiver.rx_gain" type="number" class="mt-input" id="rx_gain" min="0" max="30" step="0.1" />
+      </div>
+      <div>
+        <label for="rx_loss" class="mt-label">Cable Loss (dB)</label>
+        <input v-model="receiver.rx_loss" type="number" class="mt-input" id="rx_loss" min="0" max="100" step="0.1" />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-    import { useStore } from '../store.ts'
-    const receiver = useStore().splatParams.receiver
+import { useStore } from '../store.ts';
+const receiver = useStore().splatParams.receiver;
 </script>

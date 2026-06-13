@@ -1,17 +1,13 @@
+@import 'tailwindcss';
+
 /* Meshtastic Site Planner theme.
  *
- * Implements the Meshtastic Client Design Standards v1.4
- * (https://github.com/meshtastic/design, standards/), dark scheme:
- * tokens below are the documented dark-mode Material role mapping built
- * from the brand palette (Neutral #2C2D3C scale, Green #67EA94 scale).
- * Typography follows the native-OS-familiarity principle (system stack,
- * 16px base), touch targets are >= 44px on primary actions, and all
- * pairings below hold WCAG AA 4.5:1 contrast.
- */
-
-:root,
-[data-bs-theme='dark'] {
-  /* --- Meshtastic dark scheme tokens (design standards v1.4, s8.3) --- */
+ * Implements the Meshtastic Client Design Standards v1.4 (dark scheme):
+ * the --mt-* custom properties below are the documented dark-mode Material
+ * role mapping built from the brand palette (Neutral #2C2D3C scale,
+ * Green #67EA94 scale) and remain the single source of truth. They are
+ * surfaced to Tailwind utilities via the @theme block. */
+:root {
   --mt-primary: #67ea94; /* Green 500 */
   --mt-on-primary: #0f1017; /* Neutral 950 */
   --mt-primary-container: #2d8f52; /* Green 700 */
@@ -35,16 +31,40 @@
   --mt-surface-container: #242533;
   --mt-surface-container-high: #2c2d3c; /* Neutral 800 (brand primary) */
   --mt-surface-container-highest: #3d3e50;
+}
 
-  /* --- Bootstrap 5.3 bridge --- */
-  --bs-body-bg: var(--mt-background);
-  --bs-body-color: var(--mt-on-background);
-  --bs-body-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+/* Expose the brand tokens as Tailwind theme colors so utilities like
+ * `bg-surface-2`, `text-ink-muted`, `border-line`, `text-primary` work and
+ * support opacity modifiers (Tailwind v4 mixes via color-mix). */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-  --bs-body-font-size: 1rem; /* 16px default per standards */
-  --bs-border-color: var(--mt-outline-variant);
-  --bs-link-color: var(--mt-tertiary);
-  --bs-link-hover-color: #d0d8f5; /* Blue 200 */
+
+  --color-sunken: var(--mt-surface-container-lowest); /* #0f1017 */
+  --color-canvas: var(--mt-background); /* #1a1b26 */
+  --color-surface: var(--mt-surface-container); /* #242533 */
+  --color-surface-2: var(--mt-surface-container-high); /* #2c2d3c */
+  --color-surface-3: var(--mt-surface-container-highest); /* #3d3e50 */
+
+  --color-ink: var(--mt-on-surface); /* #ecedf3 */
+  --color-ink-muted: var(--mt-on-surface-variant); /* #bdbfcf */
+
+  --color-line: var(--mt-outline-variant); /* #444660 */
+  --color-line-strong: var(--mt-outline); /* #767892 */
+
+  --color-primary: var(--mt-primary); /* #67ea94 */
+  --color-on-primary: var(--mt-on-primary); /* #0f1017 */
+  --color-primary-hi: #8ff0b2; /* Green 400 */
+  --color-primary-lo: #3fb86d; /* Green 600 */
+
+  --color-tonal: var(--mt-secondary-container); /* #3d3e50 */
+  --color-on-tonal: var(--mt-on-secondary-container); /* #d5d6e0 */
+
+  --color-info: var(--mt-tertiary); /* #b0bff0 */
+
+  --color-danger: var(--mt-error); /* #ffb4ab */
+  --color-danger-bg: var(--mt-error-container); /* #93000a */
+  --color-on-danger-bg: var(--mt-on-error-container); /* #ffdad6 */
 }
 
 html,
@@ -54,325 +74,97 @@ body {
   padding: 0;
 }
 
+body {
+  background: var(--mt-background);
+  color: var(--mt-on-background);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+
 #map {
+  position: absolute;
+  inset: 0;
   height: 100vh;
   margin: 0;
   padding: 0;
   background: var(--mt-surface-container-lowest);
 }
 
-/* ---------- App header ---------- */
+/* ---------- Reusable form + button primitives ---------- */
 
-.mt-navbar {
-  background: var(--mt-surface-container-lowest);
-  border-bottom: 1px solid var(--mt-outline-variant);
+@layer components {
+  .mt-label {
+    @apply mb-1 block text-[0.8125rem] font-semibold text-ink-muted;
+  }
+
+  .mt-hint {
+    @apply text-[0.8125rem] leading-snug text-ink-muted;
+  }
+
+  .mt-input,
+  .mt-select {
+    @apply w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink shadow-sm transition;
+    @apply outline-none focus:border-primary focus:ring-2 focus:ring-primary/30;
+  }
+
+  .mt-input::placeholder {
+    color: var(--mt-on-surface-variant);
+  }
+
+  .mt-select {
+    @apply cursor-pointer appearance-none bg-no-repeat pr-9;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23bdbfcf' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-position: right 0.625rem center;
+    background-size: 14px 14px;
+  }
+
+  .mt-select option {
+    background: var(--mt-surface-container-high);
+    color: var(--mt-on-surface);
+  }
+
+  .mt-btn {
+    @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition select-none;
+    @apply focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .mt-btn-sm {
+    @apply min-h-[34px] px-2.5 py-1.5 text-[0.8125rem];
+  }
+
+  .mt-btn-primary {
+    @apply bg-primary text-on-primary hover:bg-primary-hi active:bg-primary-lo;
+  }
+
+  .mt-btn-secondary {
+    @apply bg-tonal text-on-tonal hover:bg-surface-3;
+  }
+
+  .mt-btn-ghost {
+    @apply border border-line-strong text-ink hover:bg-surface-2;
+  }
+
+  /* Slim loading spinner (replaces Bootstrap's .spinner-border). */
+  .mt-spinner {
+    @apply inline-block size-4 animate-spin rounded-full border-2 border-current border-r-transparent align-[-0.125em];
+  }
+
+  /* Coverage colour-scale legend (Display panel + on-map legend). */
+  .mt-colorbar {
+    @apply block h-6 w-full rounded border border-line;
+  }
+
+  .mt-legend-label {
+    @apply rounded bg-surface-3 px-2 py-0.5 text-xs font-semibold text-ink;
+  }
 }
 
-.mt-navbar .navbar-brand {
-  color: var(--mt-on-background);
-  font-weight: 650;
-  letter-spacing: 0.01em;
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.mt-brand-badge {
-  color: var(--mt-on-surface-variant);
-  font-size: 0.75rem;
-  font-weight: 500;
-  border: 1px solid var(--mt-outline-variant);
-  border-radius: 999px;
-  padding: 0.125rem 0.625rem;
-  white-space: nowrap;
-}
-
-.mt-brand-badge .mt-dot {
-  display: inline-block;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--mt-primary);
-  margin-right: 0.375rem;
-}
-
-/* ---------- Sidebar / parameters panel ---------- */
-
-/* Sits below the fixed navbar so the brand and toggler stay reachable.
- * (.offcanvas.mt-sidebar out-specifies Bootstrap's .offcanvas.offcanvas-end.) */
-.offcanvas.mt-sidebar {
-  background: var(--mt-surface-container-low);
-  color: var(--mt-on-surface);
-  border-left: 1px solid var(--mt-outline-variant);
-  width: 380px;
-  max-width: 92vw;
-  top: 57px;
-  height: calc(100% - 57px);
-}
-
-.mt-sidebar .offcanvas-header {
-  border-bottom: 1px solid var(--mt-outline-variant);
-}
-
-.mt-sidebar .offcanvas-title {
-  font-size: 1rem;
-  font-weight: 650;
-}
-
-.mt-sidebar .offcanvas-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--mt-outline-variant) transparent;
-}
-
-/* ---------- Accordion sections ---------- */
-
-.mt-accordion {
-  --bs-accordion-bg: transparent;
-  --bs-accordion-color: var(--mt-on-surface);
-  --bs-accordion-border-color: var(--mt-outline-variant);
-  --bs-accordion-btn-color: var(--mt-on-surface);
-  --bs-accordion-btn-bg: transparent;
-  --bs-accordion-active-bg: var(--mt-surface-container);
-  --bs-accordion-active-color: var(--mt-primary);
-  --bs-accordion-btn-focus-box-shadow: 0 0 0 0.2rem rgba(103, 234, 148, 0.25);
-  --bs-accordion-btn-padding-y: 0.875rem;
-  --bs-accordion-body-padding-y: 1rem;
-}
-
-.mt-accordion .accordion-button {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  min-height: 44px; /* touch target */
-  color: var(--mt-on-surface);
-  background: transparent;
-  /* Chevron in onSurfaceVariant */
-  --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23bdbfcf'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-  /* Active chevron in brand green */
-  --bs-accordion-btn-active-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2367ea94'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-}
-
-/* Explicit active state: brand green on a raised surface (Bootstrap's
- * dark theme would otherwise tint these blue). */
-.mt-accordion .accordion-button:not(.collapsed) {
-  color: var(--mt-primary);
-  background-color: var(--mt-surface-container);
-  box-shadow: inset 0 -1px 0 var(--mt-outline-variant);
-}
-
-/* Bootstrap's dark theme re-declares the chevron vars on ::after itself,
- * so repeat the brand icons at that scope. */
-.mt-accordion .accordion-button::after {
-  --bs-accordion-btn-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23bdbfcf'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-  --bs-accordion-btn-active-icon: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2367ea94'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
-}
-
-.mt-section-hint {
-  color: var(--mt-on-surface-variant);
-  font-size: 0.8125rem;
-  margin-bottom: 0.75rem;
-}
-
-/* ---------- Forms ---------- */
-
-.form-label {
-  color: var(--mt-on-surface-variant);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.form-control,
-.form-select {
-  background-color: var(--mt-surface-container-high);
-  border-color: var(--mt-outline-variant);
-  color: var(--mt-on-surface);
-}
-
-.form-control:focus,
-.form-select:focus {
-  background-color: var(--mt-surface-container-high);
-  border-color: var(--mt-primary);
-  color: var(--mt-on-surface);
-  box-shadow: 0 0 0 0.2rem rgba(103, 234, 148, 0.25);
-}
-
-.form-select {
-  /* Bootstrap's dark-mode caret, forced to the variant text color */
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23bdbfcf' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-}
-
-/* ---------- Buttons ---------- */
-
-.btn {
-  font-weight: 600;
-}
-
-/* Primary action: brand green with dark text (AA on Green 500). */
-.btn-primary {
-  --bs-btn-bg: var(--mt-primary);
-  --bs-btn-border-color: var(--mt-primary);
-  --bs-btn-color: var(--mt-on-primary);
-  --bs-btn-hover-bg: #8ff0b2; /* Green 400 */
-  --bs-btn-hover-border-color: #8ff0b2;
-  --bs-btn-hover-color: var(--mt-on-primary);
-  --bs-btn-active-bg: #3fb86d; /* Green 600 */
-  --bs-btn-active-border-color: #3fb86d;
-  --bs-btn-active-color: var(--mt-on-primary);
-  --bs-btn-disabled-bg: var(--mt-surface-container-highest);
-  --bs-btn-disabled-border-color: var(--mt-surface-container-highest);
-  --bs-btn-disabled-color: var(--mt-on-surface-variant);
-  --bs-btn-focus-shadow-rgb: 103, 234, 148;
-}
-
-/* Secondary action: tonal container per Material role mapping. */
-.btn-secondary {
-  --bs-btn-bg: var(--mt-secondary-container);
-  --bs-btn-border-color: var(--mt-secondary-container);
-  --bs-btn-color: var(--mt-on-secondary-container);
-  --bs-btn-hover-bg: var(--mt-surface-container-highest);
-  --bs-btn-hover-border-color: var(--mt-surface-container-highest);
-  --bs-btn-hover-color: var(--mt-on-surface);
-  --bs-btn-active-bg: var(--mt-surface-container-highest);
-  --bs-btn-active-border-color: var(--mt-outline);
-  --bs-btn-active-color: var(--mt-on-surface);
-  --bs-btn-focus-shadow-rgb: 118, 120, 146;
-}
-
-.btn-outline-light {
-  --bs-btn-color: var(--mt-on-surface);
-  --bs-btn-border-color: var(--mt-outline);
-  --bs-btn-hover-bg: var(--mt-surface-container-highest);
-  --bs-btn-hover-border-color: var(--mt-outline);
-  --bs-btn-hover-color: var(--mt-on-surface);
-  --bs-btn-active-bg: var(--mt-surface-container-highest);
-  --bs-btn-active-border-color: var(--mt-outline);
-  --bs-btn-active-color: var(--mt-on-surface);
-}
-
-.mt-run-btn {
-  min-height: 44px; /* touch target */
-}
-
-/* ---------- Progress ---------- */
-
-.mt-progress {
-  --bs-progress-bg: var(--mt-surface-container-highest);
-  --bs-progress-bar-bg: var(--mt-primary);
-  height: 0.5rem;
-  border-radius: 999px;
-}
-
-.mt-progress-label {
-  color: var(--mt-on-surface-variant);
-  font-size: 0.8125rem;
-}
-
-/* ---------- Error alert ---------- */
-
-.mt-alert-error {
-  background: var(--mt-error-container);
-  border: 1px solid var(--mt-error);
-  color: var(--mt-on-error-container);
-  border-radius: 0.5rem;
-}
-
-/* ---------- Site list ---------- */
-
-.mt-sites-heading {
-  color: var(--mt-on-surface-variant);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-/* Standards: list rows keep a neutral background for legibility. */
-.mt-site-list {
-  --bs-list-group-bg: var(--mt-surface-container);
-  --bs-list-group-color: var(--mt-on-surface);
-  --bs-list-group-border-color: var(--mt-outline-variant);
-}
-
-.mt-site-list .list-group-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 44px;
-}
-
-.mt-site-dot {
-  display: inline-block;
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 50%;
-  background: var(--mt-primary);
-  margin-right: 0.5rem;
-  flex: none;
-}
-
-.mt-site-list .btn-close {
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-/* ---------- Display legend ---------- */
-
-.mt-colorbar {
-  border: 1px solid var(--mt-outline-variant);
-  border-radius: 0.25rem;
-  display: block;
-  margin: 0 auto;
-  width: 100%;
-  max-width: 256px;
-  height: 24px;
-}
-
-.mt-legend-label {
-  background: var(--mt-surface-container-highest);
-  color: var(--mt-on-surface);
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: 0.25rem;
-  padding: 0.125rem 0.5rem;
-}
-
-.mt-site-link {
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--mt-on-surface);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.mt-site-link:hover {
-  color: var(--mt-primary);
-}
-
-.mt-site-eye {
-  background: none;
-  border: 0;
-  padding: 0.25rem;
-  margin-right: 0.25rem;
-  color: var(--mt-on-surface-variant);
-  cursor: pointer;
-  display: inline-flex;
-  flex: none;
-}
-
-.mt-site-eye:hover {
-  color: var(--mt-on-surface);
-}
-
-.mt-site-hidden .mt-site-link {
-  color: var(--mt-on-surface-variant);
-  opacity: 0.6;
-}
+/* ===========================================================================
+ * Map UI below is plain CSS: it styles DOM generated by src/map/*.ts and the
+ * marker elements, and MapLibre's own controls. It reads the brand tokens via
+ * var(--mt-*). Do not fold into components/utilities.
+ * ======================================================================== */
 
 /* ---------- Map: popup export ---------- */
 
@@ -410,7 +202,7 @@ body {
 
 /* ---------- Map: place search ---------- */
 
-/* The app navbar (fixed-top, ~57px) overlaps the map's top control corner;
+/* The app navbar (fixed, ~57px) overlaps the map's top control corner;
  * push top-anchored controls below it so the search box is reachable. */
 .maplibregl-ctrl-top-left {
   top: 64px;
@@ -729,7 +521,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-radius: var(--bs-border-radius, 0.375rem);
+  border-radius: 0.5rem;
   padding: 0.4rem 0.6rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -798,7 +590,7 @@ body {
   height: 120px;
   background: var(--mt-surface-container-lowest);
   border: 1px solid var(--mt-outline-variant);
-  border-radius: var(--bs-border-radius, 0.375rem);
+  border-radius: 0.5rem;
 }
 
 .mt-link-axis {
@@ -807,10 +599,4 @@ body {
   font-size: 0.75rem;
   color: var(--mt-on-surface-variant);
   margin-top: 0.25rem;
-}
-
-/* ---------- Misc ---------- */
-
-.spinner-border-sm {
-  margin-right: 0.5rem;
 }

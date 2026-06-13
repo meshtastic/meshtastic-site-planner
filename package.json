@@ -16,19 +16,18 @@
   },
   "dependencies": {
     "@vueuse/core": "^12.8.2",
-    "bootstrap": "^5.3.8",
     "d3-contour": "^4.0.2",
     "maplibre-gl": "^5.24.0",
     "pinia": "^2.3.1",
     "randanimal": "^1.0.4",
-    "vue": "^3.5.20",
-    "vue3-popper": "^1.5.0"
+    "vue": "^3.5.20"
   },
   "devDependencies": {
-    "@types/bootstrap": "^5.2.10",
+    "@tailwindcss/vite": "^4.3.1",
     "@types/d3-contour": "^3.0.6",
     "@types/geojson": "^7946.0.16",
     "@vitejs/plugin-vue": "^6.0.1",
+    "tailwindcss": "^4.3.1",
     "typescript": "~5.9.2",
     "vite": "^7.3.2",
     "vitest": "^4.1.8",
