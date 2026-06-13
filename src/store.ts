@@ -15,6 +15,7 @@ import { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METERS } from './engine/params.ts';
 import { analyzeLink, type LinkAnalysis } from './engine/link.ts';
+import { loadParams } from './persist.ts';
 import { TerrainService } from './terrain/TerrainService.ts';
 
 // Module-level singletons: workers, terrain cache, and map handles outlive
@@ -118,6 +119,38 @@ function buildCoverageRequest(p: SplatParams): CoverageRequest {
   };
 }
 
+/** Fresh factory-default site parameters (new object each call so callers
+ * never share nested references; the site name is randomized per call). */
+function defaultParams(): SplatParams {
+  return {
+    transmitter: {
+      name: randanimalSync(),
+      tx_lat: 51.102167,
+      tx_lon: -114.098667,
+      tx_power: 0.1,
+      tx_freq: 907.0,
+      tx_height: 2.0,
+      tx_gain: 2.0,
+    },
+    receiver: { rx_sensitivity: -130.0, rx_height: 1.0, rx_gain: 2.0, rx_loss: 2.0 },
+    environment: {
+      radio_climate: 'continental_temperate',
+      polarization: 'vertical',
+      clutter_height: 1.0,
+      ground_dielectric: 15.0,
+      ground_conductivity: 0.005,
+      atmosphere_bending: 301.0,
+    },
+    simulation: {
+      situation_fraction: 95.0,
+      time_fraction: 95.0,
+      simulation_extent: 30.0,
+      high_resolution: false,
+    },
+    display: { color_scale: 'plasma', min_dbm: -130.0, max_dbm: -80.0, overlay_transparency: 50 },
+  };
+}
+
 const useStore = defineStore('store', {
   state() {
     return {
@@ -138,43 +171,8 @@ const useStore = defineStore('store', {
       /** Find-highpoint (#39) status. */
       highpointBusy: false,
       highpointMessage: '' as string,
-      splatParams: <SplatParams>{
-        transmitter: {
-          name: randanimalSync(),
-          tx_lat: 51.102167,
-          tx_lon: -114.098667,
-          tx_power: 0.1,
-          tx_freq: 907.0,
-          tx_height: 2.0,
-          tx_gain: 2.0
-        },
-        receiver: {
-          rx_sensitivity: -130.0,
-          rx_height: 1.0,
-          rx_gain: 2.0,
-          rx_loss: 2.0
-        },
-        environment: {
-          radio_climate: 'continental_temperate',
-          polarization: 'vertical',
-          clutter_height: 1.0,
-          ground_dielectric: 15.0,
-          ground_conductivity: 0.005,
-          atmosphere_bending: 301.0
-        },
-        simulation: {
-          situation_fraction: 95.0,
-          time_fraction: 95.0,
-          simulation_extent: 30.0,
-          high_resolution: false
-        },
-        display: {
-          color_scale: 'plasma',
-          min_dbm: -130.0,
-          max_dbm: -80.0,
-          overlay_transparency: 50
-        },
-      }
+      // Restore the last-used parameters (#12); falls back to defaults.
+      splatParams: loadParams(defaultParams()),
     }
   },
   actions: {
