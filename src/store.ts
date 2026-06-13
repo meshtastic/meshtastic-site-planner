@@ -11,7 +11,7 @@ import { SearchControl } from './map/search.ts';
 import { coverageImage, cropToRadius } from './map/overlay.ts';
 import { coverageContours } from './map/contours.ts';
 import { exportGeoJSON, exportKml, exportPngWorldFile } from './map/export.ts';
-import { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
+import type { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METERS } from './engine/params.ts';
 import { analyzeLink, type LinkAnalysis } from './engine/link.ts';
@@ -72,8 +72,14 @@ function bearingDeg(lat1: number, lon1: number, lat2: number, lon2: number): num
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-function getEngine(): WasmCoverageEngine {
-  engine ??= new WasmCoverageEngine();
+// Lazily import the WASM engine so it (and the wasm glue) stays out of the
+// initial bundle — it's only needed once the user runs a simulation, link, or
+// highpoint search (#16, code-split).
+async function getEngine(): Promise<WasmCoverageEngine> {
+  if (!engine) {
+    const { WasmCoverageEngine } = await import('./engine/WasmCoverageEngine.ts');
+    engine = new WasmCoverageEngine();
+  }
   return engine;
 }
 
@@ -341,7 +347,7 @@ const useStore = defineStore('store', {
           lon: this.linkTarget.lon,
           altFeet: this.splatParams.receiver.rx_height / METERS_PER_FOOT,
         };
-        const link = await getEngine().runLink(params, target, { terrain: getTerrain(), signal });
+        const link = await (await getEngine()).runLink(params, target, { terrain: getTerrain(), signal });
         if (signal.aborted) return;
         this.linkAzimuthDeg = link.azimuthDeg;
         this.linkAnalysis = analyzeLink({
@@ -454,7 +460,7 @@ const useStore = defineStore('store', {
         request.radius = r * 1000; // search disk = engine region
         request.high_resolution = false;
         const params = toEngineParams(request);
-        const hp = await getEngine().findHighpoint(params, r, {
+        const hp = await (await getEngine()).findHighpoint(params, r, {
           terrain: getTerrain(),
           signal: ac.signal,
         });
@@ -842,7 +848,7 @@ const useStore = defineStore('store', {
         const params = toEngineParams(request);
         console.log('Coverage request:', request);
 
-        const result = await getEngine().run(params, {
+        const result = await (await getEngine()).run(params, {
           terrain: getTerrain(),
           signal: abortController.signal,
           onProgress: (p) => {

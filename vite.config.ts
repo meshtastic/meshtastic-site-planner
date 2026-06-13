@@ -16,5 +16,19 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Split the big, stable vendors into their own chunks so they load in
+        // parallel with the app code and stay cached across app-only deploys
+        // (#16). The WASM engine is split separately via a dynamic import.
+        manualChunks(id: string) {
+          if (id.includes('node_modules/maplibre-gl')) return 'maplibre';
+          if (/node_modules\/(@vue|vue|pinia|@vueuse)\//.test(id)) return 'vue';
+        },
+      },
+    },
+    // maplibre-gl is ~1 MB (283 kB gzip) and can't be split further; it now
+    // lives in its own cacheable chunk, so raise the limit past it.
+    chunkSizeWarningLimit: 1100,
   },
 }))
