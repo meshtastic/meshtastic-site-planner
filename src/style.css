@@ -392,6 +392,22 @@ body {
   background-color: var(--mt-surface-container-highest);
 }
 
+/* On-brand, clearly visible keyboard focus across all map controls (zoom,
+ * geolocate, export, basemap, and the attribution "i"), replacing the
+ * browser's default blue ring that clashed with the dark theme. Mouse clicks
+ * show no ring; keyboard focus shows a green outline (>=3:1 vs the panel). */
+.maplibregl-ctrl button:focus-visible,
+.maplibregl-ctrl summary:focus-visible {
+  outline: 2px solid var(--mt-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.maplibregl-ctrl button:focus:not(:focus-visible),
+.maplibregl-ctrl summary:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* MapLibre's built-in icons are dark glyphs; lift them for dark surfaces. */
 .maplibregl-ctrl button .maplibregl-ctrl-icon {
   filter: invert(0.85);
@@ -408,13 +424,24 @@ body {
   border-color: var(--mt-outline);
 }
 
+/* More opaque so text stays legible over light basemaps (satellite/terrain),
+ * not just the dark default. */
 .maplibregl-ctrl-attrib {
-  background: rgba(26, 27, 38, 0.75) !important;
-  color: var(--mt-on-surface-variant);
+  background: rgba(26, 27, 38, 0.92) !important;
+}
+
+/* MapLibre's attribution text is dark-on-light by default; force the plain
+ * (non-link) text to the light on-surface colour or it renders near-black on
+ * the dark panel (~1.2:1 contrast — a WCAG failure). !important to beat the
+ * vendor styles. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib-inner,
+.maplibregl-ctrl-attrib-inner span {
+  color: var(--mt-on-surface) !important; /* #ecedf3 -> ~13:1 on the panel */
 }
 
 .maplibregl-ctrl-attrib a {
-  color: var(--mt-tertiary);
+  color: var(--mt-tertiary) !important; /* #b0bff0 -> ~9.4:1 */
 }
 
 /* Basemap switcher (custom control) */
