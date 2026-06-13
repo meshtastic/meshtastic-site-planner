@@ -17,6 +17,7 @@ import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METER
 import { analyzeLink, type LinkAnalysis } from './engine/link.ts';
 import { loadParams, mergeParams, saveParams } from './persist.ts';
 import { decodeSharedHash, buildShareUrl, clearSharedHash } from './permalink.ts';
+import { coverageStats } from './coverageStats.ts';
 import { TerrainService } from './terrain/TerrainService.ts';
 
 // Module-level singletons: workers, terrain cache, and map handles outlive
@@ -69,6 +70,8 @@ function getTerrain(): TerrainService {
  * directly. */
 function buildSitePopup(site: Site): HTMLElement {
   const t = site.params.transmitter;
+  const s = site.stats;
+  const km2 = s.areaKm2 >= 100 ? String(Math.round(s.areaKm2)) : s.areaKm2.toFixed(1);
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
   const el = document.createElement('div');
@@ -78,7 +81,10 @@ function buildSitePopup(site: Site): HTMLElement {
     <div class="mt-popup-row"><span>Frequency</span><span>${t.tx_freq} MHz</span></div>
     <div class="mt-popup-row"><span>Power</span><span>${t.tx_power} W</span></div>
     <div class="mt-popup-row"><span>Antenna height</span><span>${t.tx_height} m</span></div>
-    <div class="mt-popup-row"><span>Max range</span><span>${site.params.simulation.simulation_extent} km</span></div>
+    <div class="mt-popup-row"><span>Plot radius</span><span>${site.params.simulation.simulation_extent} km</span></div>
+    <div class="mt-popup-row"><span>Coverage (≥ ${s.thresholdDbm} dBm)</span><span>${km2} km²</span></div>
+    <div class="mt-popup-row"><span>Max usable range</span><span>${s.maxRangeKm.toFixed(1)} km</span></div>
+    <div class="mt-popup-row"><span>Disk covered</span><span>${Math.round(s.coveredFraction * 100)}%</span></div>
     <div class="mt-popup-export">
       <span>Export</span>
       <button type="button" data-fmt="geojson">GeoJSON</button>
@@ -709,7 +715,13 @@ const useStore = defineStore('store', {
         const cropped = cropToRadius(result, request.lat, request.lon, request.radius);
         const siteParams = cloneObject(this.splatParams);
         const id = crypto.randomUUID();
-        const site: Site = { params: siteParams, id, result: cropped, visible: true };
+        const stats = coverageStats(
+          cropped,
+          request.lat,
+          request.lon,
+          siteParams.receiver.rx_sensitivity
+        );
+        const site: Site = { params: siteParams, id, result: cropped, visible: true, stats };
         this.localSites.push(site);
 
         // The draft pin becomes a persistent, labeled site marker.

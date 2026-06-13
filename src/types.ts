@@ -1,4 +1,5 @@
 import type { CoverageResult } from './engine/CoverageEngine';
+import type { CoverageStats } from './coverageStats';
 
 export interface Site {
     params: SplatParams;
@@ -8,6 +9,8 @@ export interface Site {
     result: CoverageResult;
     /** Whether this site's overlay + marker are shown (#61). */
     visible: boolean;
+    /** Coverage area / range / fraction, computed once at simulation time. */
+    stats: CoverageStats;
 }
 export interface SplatParams {
     transmitter: {

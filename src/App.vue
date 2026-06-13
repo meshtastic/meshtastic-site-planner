@@ -73,12 +73,15 @@
             </button>
             <button
               type="button"
-              class="flex min-w-0 flex-1 items-center gap-2 truncate bg-transparent text-left text-sm text-ink hover:text-primary"
+              class="flex min-w-0 flex-1 items-center gap-2 bg-transparent text-left text-ink hover:text-primary"
               :title="`Go to ${site.params.transmitter.name}`"
               @click="store.focusSite(index)"
             >
               <span class="size-2.5 shrink-0 rounded-full" :style="{ background: siteColor(site) }" aria-hidden="true"></span>
-              <span class="truncate">{{ site.params.transmitter.name }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm">{{ site.params.transmitter.name }}</span>
+                <span class="block truncate text-xs text-ink-muted">{{ statsLine(site) }}</span>
+              </span>
             </button>
             <button
               type="button"
@@ -180,6 +183,14 @@ const siteColor = (site: Site) => {
   const lut = colormapLut(site.params.display.color_scale);
   const i = 192 * 3; // a vivid representative sample of the colormap
   return `rgb(${lut[i]}, ${lut[i + 1]}, ${lut[i + 2]})`;
+};
+
+// Compact coverage summary shown under each site name: area + max range.
+const statsLine = (site: Site) => {
+  const s = site.stats;
+  if (!s) return '';
+  const area = s.areaKm2 >= 100 ? Math.round(s.areaKm2) : s.areaKm2.toFixed(1);
+  return `${area} km² covered · ${s.maxRangeKm.toFixed(1)} km range`;
 };
 
 const buttonText = () => {
