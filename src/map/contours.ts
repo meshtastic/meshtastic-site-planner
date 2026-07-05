@@ -157,14 +157,32 @@ export function coverageContours(result: CoverageResult, opts: ContourOptions): 
     .map((c) => {
       const t = (c.value - opts.minDbm) / colorSpan;
       const ci = Math.max(0, Math.min(255, Math.round(t * 255))) * 3;
-      const color = `rgb(${lut[ci]}, ${lut[ci + 1]}, ${lut[ci + 2]})`;
+      const r = lut[ci] ?? 0;
+      const g = lut[ci + 1] ?? 0;
+      const b = lut[ci + 2] ?? 0;
+      const color = `rgb(${r}, ${g}, ${b})`;
+      // Hex form of the same color for the simplestyle-spec keys below. The spec — and the renderers
+      // that read it — require hex, not rgb().
+      const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
       const geometry: MultiPolygon = {
         type: 'MultiPolygon',
         coordinates: c.coordinates.map((poly) => poly.map((ring) => ring.map(toLngLat))),
       };
       return {
         type: 'Feature',
-        properties: { dbm: Math.round(c.value), color, label: `≥ ${Math.round(c.value)} dBm` },
+        properties: {
+          dbm: Math.round(c.value),
+          color,
+          label: `≥ ${Math.round(c.value)} dBm`,
+          // simplestyle-spec (https://github.com/mapbox/simplestyle-spec) so the contours render with
+          // their coverage colors in tools that don't read our custom `color` key — e.g. the
+          // Meshtastic mobile apps' GeoJSON import, geojson.io, and GitHub GeoJSON previews.
+          fill: hex,
+          'fill-opacity': 0.35,
+          stroke: hex,
+          'stroke-width': 1,
+          'stroke-opacity': 0.8,
+        },
         geometry,
       };
     });
