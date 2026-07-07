@@ -10,7 +10,7 @@ import { BasemapControl, ExportControl, MeasureControl } from './map/controls.ts
 import { SearchControl } from './map/search.ts';
 import { coverageImage, cropToRadius } from './map/overlay.ts';
 import { coverageContours } from './map/contours.ts';
-import { exportGeoJSON, exportKml, exportPngWorldFile } from './map/export.ts';
+import { canShareFiles, exportGeoJSON, exportKml, exportPngWorldFile, shareGeoJSON } from './map/export.ts';
 import type { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METERS } from './engine/params.ts';
@@ -113,6 +113,7 @@ function buildSitePopup(site: Site): HTMLElement {
       <button type="button" data-fmt="geojson">GeoJSON</button>
       <button type="button" data-fmt="png">PNG</button>
       <button type="button" data-fmt="kml">KML</button>
+      ${canShareFiles() ? '<button type="button" data-fmt="share">Send to App</button>' : ''}
     </div>`;
   el.querySelectorAll<HTMLButtonElement>('button[data-fmt]').forEach((b) =>
     b.addEventListener('click', () => {
@@ -120,6 +121,7 @@ function buildSitePopup(site: Site): HTMLElement {
       if (fmt === 'geojson') exportGeoJSON(site);
       else if (fmt === 'png') void exportPngWorldFile(site);
       else if (fmt === 'kml') void exportKml(site);
+      else if (fmt === 'share') void shareGeoJSON(site);
     })
   );
   return el;
