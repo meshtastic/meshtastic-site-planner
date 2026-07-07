@@ -78,14 +78,52 @@ function worldFile(result: CoverageResult): string {
   return [a, 0, 0, e, c, f].map((n) => n.toString()).join('\n') + '\n';
 }
 
-export function exportGeoJSON(site: Site): void {
-  const fc = coverageContours(site.result, {
+function coverageFeatureCollection(site: Site) {
+  return coverageContours(site.result, {
     colorScale: site.params.display.color_scale,
     minDbm: site.params.display.min_dbm,
     maxDbm: site.params.display.max_dbm,
     sensitivityDbm: site.params.receiver.rx_sensitivity,
   });
+}
+
+export function exportGeoJSON(site: Site): void {
+  const fc = coverageFeatureCollection(site);
   download(`${slug(site.params.transmitter.name)}.geojson`, new Blob([JSON.stringify(fc)], { type: 'application/geo+json' }));
+}
+
+/** True if the browser can hand a file to the OS share sheet (e.g. iOS/Android
+ * "Open in Meshtastic"). Desktop and older mobile browsers report false —
+ * callers should fall back to a plain download. */
+export function canShareFiles(): boolean {
+  if (typeof navigator === 'undefined' || !navigator.canShare) return false;
+  const probe = new File(['{}'], 'probe.geojson', { type: 'application/geo+json' });
+  try {
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/** Share the coverage GeoJSON via the OS share sheet so the user can hand it
+ * straight to the Meshtastic app (or any other app that opens GeoJSON),
+ * falling back to a plain download if the browser can't share files or the
+ * share sheet fails for a reason other than the user cancelling it. */
+export async function shareGeoJSON(site: Site): Promise<void> {
+  const fc = coverageFeatureCollection(site);
+  const file = new File([JSON.stringify(fc)], `${slug(site.params.transmitter.name)}.geojson`, {
+    type: 'application/geo+json',
+  });
+
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: `${site.params.transmitter.name} coverage` });
+      return;
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return; // user cancelled
+    }
+  }
+  download(file.name, file);
 }
 
 export async function exportPngWorldFile(site: Site): Promise<void> {
