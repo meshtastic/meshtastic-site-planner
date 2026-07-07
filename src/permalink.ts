@@ -5,6 +5,7 @@
  * the small read/build/clear functions) so the codec is unit-testable. */
 
 import type { SplatParams } from './types';
+import { COLORMAP_NAMES } from './render/colormaps';
 
 const HASH_PREFIX = 'cfg=';
 
@@ -83,7 +84,7 @@ function isTruthy(v: string | null | undefined): boolean {
 
 /** Partial params from the flat `?lat=&lon=&name=&tx_*=` query contract, or null
  * if none are present. Shape matches what mergeParams() merges over defaults. */
-export function decodeSharedQuery(): unknown | null {
+export function decodeSharedQuery(): Record<string, unknown> | null {
   if (typeof location === 'undefined' || !location.search) return null;
   const q = new URLSearchParams(location.search);
   const tx: Record<string, unknown> = {};
@@ -99,7 +100,8 @@ export function decodeSharedQuery(): unknown | null {
   }
   const display: Record<string, unknown> = {};
   const colorScale = q.get('color_scale');
-  if (colorScale) display.color_scale = colorScale;
+  // Only pass through a known colormap — an unknown value would break the legend/colorbar asset filename.
+  if (colorScale && COLORMAP_NAMES.includes(colorScale)) display.color_scale = colorScale;
   const params: Record<string, unknown> = {};
   if (Object.keys(tx).length) params.transmitter = tx;
   if (Object.keys(display).length) params.display = display;

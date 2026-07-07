@@ -104,7 +104,12 @@ export function postCoverageToBridge(site: Site): void {
   const bridge = (globalThis as { __meshtasticNative?: { onCoverage?: (geojson: string) => void } })
     .__meshtasticNative;
   if (typeof bridge?.onCoverage === 'function') {
-    bridge.onCoverage(JSON.stringify(coverageFeatureCollection(site)));
+    // Best-effort side channel: a throwing host must not fail an already-successful simulation.
+    try {
+      bridge.onCoverage(JSON.stringify(coverageFeatureCollection(site)));
+    } catch (error) {
+      console.error('postCoverageToBridge: native bridge threw', error);
+    }
   }
 }
 

@@ -57,6 +57,13 @@ describe('app hand-off query contract', () => {
     });
   });
 
+  it('passes a known color_scale into display but drops an unknown one', () => {
+    stubLocation('?lat=51.05&color_scale=turbo');
+    expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 }, display: { color_scale: 'turbo' } });
+    stubLocation('?lat=51.05&color_scale=bogus');
+    expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 } });
+  });
+
   it('omits missing and non-numeric fields, and returns null when nothing usable', () => {
     stubLocation('?lat=51.05&tx_power=abc');
     expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 } });
