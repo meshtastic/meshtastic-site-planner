@@ -79,12 +79,16 @@ function worldFile(result: CoverageResult): string {
 }
 
 function coverageFeatureCollection(site: Site) {
-  return coverageContours(site.result, {
+  const fc = coverageContours(site.result, {
     colorScale: site.params.display.color_scale,
     minDbm: site.params.display.min_dbm,
     maxDbm: site.params.display.max_dbm,
     sensitivityDbm: site.params.receiver.rx_sensitivity,
   });
+  // Foreign top-level members (RFC 7946 §6.1) — renderers ignore them, but an
+  // importing app (e.g. the Meshtastic mobile apps) can name/associate the
+  // overlay from the source site instead of a filename or "Layer N".
+  return { ...fc, properties: { generator: 'meshtastic-site-planner', name: site.params.transmitter.name } };
 }
 
 export function exportGeoJSON(site: Site): void {
