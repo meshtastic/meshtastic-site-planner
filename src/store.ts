@@ -10,7 +10,7 @@ import { BasemapControl, ExportControl, MeasureControl } from './map/controls.ts
 import { SearchControl } from './map/search.ts';
 import { coverageImage, cropToRadius } from './map/overlay.ts';
 import { coverageContours } from './map/contours.ts';
-import { canShareFiles, exportGeoJSON, exportKml, exportPngWorldFile, shareGeoJSON } from './map/export.ts';
+import { canShareFiles, exportGeoJSON, exportKml, exportPngWorldFile, postCoverageToBridge, shareGeoJSON } from './map/export.ts';
 import type { WasmCoverageEngine } from './engine/WasmCoverageEngine.ts';
 import type { CoverageProgress } from './engine/CoverageEngine.ts';
 import { toEngineParams, type CoverageRequest, METERS_PER_FOOT, MAX_RADIUS_METERS } from './engine/params.ts';
@@ -913,9 +913,13 @@ const useStore = defineStore('store', {
           siteMarkers.set(id, marker);
         }
 
-        this.splatParams.transmitter.name = randanimalSync();
         this.syncOverlays();
         this.simulationState = 'completed';
+        // Headless/native hand-off (Android WebView): push the styled GeoJSON to
+        // the injected bridge, before the name is randomized below, so it carries
+        // the source site's name. No-op in a normal browser.
+        postCoverageToBridge(site);
+        this.splatParams.transmitter.name = randanimalSync();
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           console.log('Simulation cancelled');
