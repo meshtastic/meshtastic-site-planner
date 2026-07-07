@@ -57,6 +57,39 @@ describe('app hand-off query contract', () => {
     });
   });
 
+  it('passes a known color_scale into display but drops an unknown one', () => {
+    stubLocation('?lat=51.05&color_scale=turbo');
+    expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 }, display: { color_scale: 'turbo' } });
+    stubLocation('?lat=51.05&color_scale=bogus');
+    expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 } });
+  });
+
+  it('maps advanced keys onto their sections (receiver / simulation / environment / display)', () => {
+    stubLocation(
+      '?rx_sensitivity=-135&rx_height=3&rx_loss=1&max_range=50&high_res=1' +
+        '&situation_fraction=90&clutter_height=2&min_dbm=-140&max_dbm=-70&overlay_transparency=25',
+    );
+    expect(decodeSharedQuery()).toEqual({
+      receiver: { rx_sensitivity: -135, rx_height: 3, rx_loss: 1 },
+      simulation: { simulation_extent: 50, high_resolution: true, situation_fraction: 90 },
+      environment: { clutter_height: 2 },
+      display: { min_dbm: -140, max_dbm: -70, overlay_transparency: 25 },
+    });
+  });
+
+  it('passes known climate/polarization enums but drops unknown ones; high_res=0 is false', () => {
+    stubLocation('?radio_climate=desert&polarization=horizontal&high_res=0');
+    expect(decodeSharedQuery()).toEqual({
+      environment: { radio_climate: 'desert', polarization: 'horizontal' },
+      simulation: { high_resolution: false },
+    });
+    stubLocation('?radio_climate=bogus&polarization=sideways');
+    expect(decodeSharedQuery()).toBeNull();
+    // Inherited Object keys must not slip past the whitelist (own-property check).
+    stubLocation('?radio_climate=toString&polarization=constructor');
+    expect(decodeSharedQuery()).toBeNull();
+  });
+
   it('omits missing and non-numeric fields, and returns null when nothing usable', () => {
     stubLocation('?lat=51.05&tx_power=abc');
     expect(decodeSharedQuery()).toEqual({ transmitter: { tx_lat: 51.05 } });

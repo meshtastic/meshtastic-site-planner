@@ -5,6 +5,8 @@
  * the small read/build/clear functions) so the codec is unit-testable. */
 
 import type { SplatParams } from './types';
+import { COLORMAP_NAMES } from './render/colormaps';
+import { CLIMATE_CODES, POLARIZATION_CODES } from './engine/params';
 
 const HASH_PREFIX = 'cfg=';
 
@@ -59,17 +61,57 @@ export function clearSharedHash(): void {
 }
 
 /* --- App hand-off (query string) --------------------------------------------
- * A minimal, stable query contract so a native app (e.g. the Meshtastic mobile
+ * A stable, readable query contract so a native app (e.g. the Meshtastic mobile
  * apps) can deep-link into the planner prefilled and, optionally, auto-run —
- * without knowing the internal SplatParams shape or base64-encoding JSON:
+ * without base64-encoding JSON or knowing the internal SplatParams nesting:
  *
- *   ?lat=51.05&lon=-114.07&name=Tower%20A&tx_power=0.5&tx_freq=915&tx_height=12&tx_gain=5.5&run=1
+ *   ?lat=51.05&lon=-114.07&name=Tower%20A&tx_power=0.5&tx_freq=915&tx_height=12
+ *     &tx_gain=5.5&rx_sensitivity=-130&max_range=50&high_res=1&color_scale=plasma&run=1
  *
- * Only the keys present are applied (merged over the factory defaults); `run=1`
- * (also accepted in the hash) computes coverage as soon as the map is ready. */
+ * Keys map onto SplatParams sections via QUERY_NUM_FIELDS plus the name/bool/enum
+ * handling below; only the keys present are applied (merged over the factory
+ * defaults, per-section). `run=1` (also accepted in the hash) computes coverage
+ * as soon as the map is ready. Unknown enum values are ignored — the default
+ * applies — so a bad string can't throw in the engine or break a legend asset. */
 
-const QUERY_TX_NUMS = ['tx_power', 'tx_freq', 'tx_height', 'tx_gain'] as const;
-const QUERY_KEYS = ['lat', 'lon', 'name', ...QUERY_TX_NUMS, 'run'];
+type Section = keyof SplatParams;
+
+// Numeric flat keys → [section, field]. Grouped by section so a partial merges
+// cleanly over the defaults (mergeParams merges section-by-section).
+// (rx_gain is intentionally omitted: it's ignored for area coverage, only used
+// in point-to-point link analysis, so a hand-off can't meaningfully set it.)
+const QUERY_NUM_FIELDS: Record<string, [Section, string]> = {
+  lat: ['transmitter', 'tx_lat'],
+  lon: ['transmitter', 'tx_lon'],
+  tx_power: ['transmitter', 'tx_power'],
+  tx_freq: ['transmitter', 'tx_freq'],
+  tx_height: ['transmitter', 'tx_height'],
+  tx_gain: ['transmitter', 'tx_gain'],
+  rx_sensitivity: ['receiver', 'rx_sensitivity'],
+  rx_height: ['receiver', 'rx_height'],
+  rx_loss: ['receiver', 'rx_loss'],
+  max_range: ['simulation', 'simulation_extent'],
+  situation_fraction: ['simulation', 'situation_fraction'],
+  time_fraction: ['simulation', 'time_fraction'],
+  clutter_height: ['environment', 'clutter_height'],
+  ground_dielectric: ['environment', 'ground_dielectric'],
+  ground_conductivity: ['environment', 'ground_conductivity'],
+  atmosphere_bending: ['environment', 'atmosphere_bending'],
+  min_dbm: ['display', 'min_dbm'],
+  max_dbm: ['display', 'max_dbm'],
+  overlay_transparency: ['display', 'overlay_transparency'],
+};
+
+// Every hand-off key, for clearSharedQuery() (numeric + name/bool/enum + run).
+const QUERY_KEYS = [
+  ...Object.keys(QUERY_NUM_FIELDS),
+  'name',
+  'high_res',
+  'radio_climate',
+  'polarization',
+  'color_scale',
+  'run',
+];
 
 function finiteNum(s: string | null): number | null {
   if (s == null || s.trim() === '') return null;
@@ -81,23 +123,51 @@ function isTruthy(v: string | null | undefined): boolean {
   return v === '1' || v === 'true';
 }
 
-/** Partial params from the flat `?lat=&lon=&name=&tx_*=` query contract, or null
- * if none are present. Shape matches what mergeParams() merges over defaults. */
-export function decodeSharedQuery(): unknown | null {
+/** Partial params from the flat query hand-off contract, or null if none are
+ * present. Shape matches what mergeParams() merges over defaults (per section). */
+export function decodeSharedQuery(): Record<string, unknown> | null {
   if (typeof location === 'undefined' || !location.search) return null;
   const q = new URLSearchParams(location.search);
-  const tx: Record<string, unknown> = {};
-  const lat = finiteNum(q.get('lat'));
-  const lon = finiteNum(q.get('lon'));
-  if (lat != null) tx.tx_lat = lat;
-  if (lon != null) tx.tx_lon = lon;
-  const name = q.get('name');
-  if (name) tx.name = name;
-  for (const k of QUERY_TX_NUMS) {
-    const v = finiteNum(q.get(k));
-    if (v != null) tx[k] = v;
+  const sections: Record<Section, Record<string, unknown>> = {
+    transmitter: {},
+    receiver: {},
+    environment: {},
+    simulation: {},
+    display: {},
+  };
+
+  for (const [key, [section, field]] of Object.entries(QUERY_NUM_FIELDS)) {
+    const v = finiteNum(q.get(key));
+    if (v != null) sections[section][field] = v;
   }
-  return Object.keys(tx).length ? { transmitter: tx } : null;
+
+  const name = q.get('name');
+  if (name) sections.transmitter.name = name;
+
+  const highRes = q.get('high_res');
+  if (highRes != null) sections.simulation.high_resolution = isTruthy(highRes);
+
+  // Enums: only known values pass through (an unknown climate/polarization throws
+  // in the engine, an unknown colormap breaks a legend asset); else the default.
+  // Own-property checks so inherited keys (`toString`, `constructor`, …) can't slip past the whitelist.
+  const climate = q.get('radio_climate');
+  if (climate && Object.prototype.hasOwnProperty.call(CLIMATE_CODES, climate)) {
+    sections.environment.radio_climate = climate;
+  }
+  const polarization = q.get('polarization');
+  if (polarization && Object.prototype.hasOwnProperty.call(POLARIZATION_CODES, polarization)) {
+    sections.environment.polarization = polarization;
+  }
+  const colorScale = q.get('color_scale');
+  if (colorScale && COLORMAP_NAMES.includes(colorScale)) {
+    sections.display.color_scale = colorScale;
+  }
+
+  const params: Record<string, unknown> = {};
+  for (const [section, obj] of Object.entries(sections)) {
+    if (Object.keys(obj).length) params[section] = obj;
+  }
+  return Object.keys(params).length ? params : null;
 }
 
 /** True if the URL asks the planner to compute coverage immediately on load

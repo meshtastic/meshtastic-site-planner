@@ -96,6 +96,23 @@ export function exportGeoJSON(site: Site): void {
   download(`${slug(site.params.transmitter.name)}.geojson`, new Blob([JSON.stringify(fc)], { type: 'application/geo+json' }));
 }
 
+/** Hand the styled coverage GeoJSON to a native host if one injected a bridge
+ * (e.g. an Android WebView that loaded the planner headless with `&run=1` and a
+ * `window.__meshtasticNative` JS interface). No-op in a normal browser — that
+ * path uses the share sheet / download instead. */
+export function postCoverageToBridge(site: Site): void {
+  const bridge = (globalThis as { __meshtasticNative?: { onCoverage?: (geojson: string) => void } })
+    .__meshtasticNative;
+  if (typeof bridge?.onCoverage === 'function') {
+    // Best-effort side channel: a throwing host must not fail an already-successful simulation.
+    try {
+      bridge.onCoverage(JSON.stringify(coverageFeatureCollection(site)));
+    } catch (error) {
+      console.error('postCoverageToBridge: native bridge threw', error);
+    }
+  }
+}
+
 /** True if the browser can hand a file to the OS share sheet (e.g. iOS/Android
  * "Open in Meshtastic"). Desktop and older mobile browsers report false —
  * callers should fall back to a plain download. */
