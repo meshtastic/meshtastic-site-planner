@@ -63,13 +63,13 @@ export function clearSharedHash(): void {
  * apps) can deep-link into the planner prefilled and, optionally, auto-run —
  * without knowing the internal SplatParams shape or base64-encoding JSON:
  *
- *   ?lat=51.05&lon=-114.07&name=Tower%20A&tx_power=0.5&tx_freq=915&tx_height=12&tx_gain=5.5&run=1
+ *   ?lat=51.05&lon=-114.07&name=Tower%20A&tx_power=0.5&tx_freq=915&tx_height=12&tx_gain=5.5&color_scale=plasma&run=1
  *
  * Only the keys present are applied (merged over the factory defaults); `run=1`
  * (also accepted in the hash) computes coverage as soon as the map is ready. */
 
 const QUERY_TX_NUMS = ['tx_power', 'tx_freq', 'tx_height', 'tx_gain'] as const;
-const QUERY_KEYS = ['lat', 'lon', 'name', ...QUERY_TX_NUMS, 'run'];
+const QUERY_KEYS = ['lat', 'lon', 'name', ...QUERY_TX_NUMS, 'color_scale', 'run'];
 
 function finiteNum(s: string | null): number | null {
   if (s == null || s.trim() === '') return null;
@@ -97,7 +97,13 @@ export function decodeSharedQuery(): unknown | null {
     const v = finiteNum(q.get(k));
     if (v != null) tx[k] = v;
   }
-  return Object.keys(tx).length ? { transmitter: tx } : null;
+  const display: Record<string, unknown> = {};
+  const colorScale = q.get('color_scale');
+  if (colorScale) display.color_scale = colorScale;
+  const params: Record<string, unknown> = {};
+  if (Object.keys(tx).length) params.transmitter = tx;
+  if (Object.keys(display).length) params.display = display;
+  return Object.keys(params).length ? params : null;
 }
 
 /** True if the URL asks the planner to compute coverage immediately on load
