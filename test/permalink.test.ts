@@ -85,6 +85,9 @@ describe('app hand-off query contract', () => {
     });
     stubLocation('?radio_climate=bogus&polarization=sideways');
     expect(decodeSharedQuery()).toBeNull();
+    // Inherited Object keys must not slip past the whitelist (own-property check).
+    stubLocation('?radio_climate=toString&polarization=constructor');
+    expect(decodeSharedQuery()).toBeNull();
   });
 
   it('omits missing and non-numeric fields, and returns null when nothing usable', () => {

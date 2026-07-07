@@ -149,12 +149,13 @@ export function decodeSharedQuery(): Record<string, unknown> | null {
 
   // Enums: only known values pass through (an unknown climate/polarization throws
   // in the engine, an unknown colormap breaks a legend asset); else the default.
+  // Own-property checks so inherited keys (`toString`, `constructor`, …) can't slip past the whitelist.
   const climate = q.get('radio_climate');
-  if (climate && climate in CLIMATE_CODES) {
+  if (climate && Object.prototype.hasOwnProperty.call(CLIMATE_CODES, climate)) {
     sections.environment.radio_climate = climate;
   }
   const polarization = q.get('polarization');
-  if (polarization && polarization in POLARIZATION_CODES) {
+  if (polarization && Object.prototype.hasOwnProperty.call(POLARIZATION_CODES, polarization)) {
     sections.environment.polarization = polarization;
   }
   const colorScale = q.get('color_scale');
