@@ -12,10 +12,25 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
+# Custom colormaps not built into matplotlib, registered by name so plt.get_cmap
+# below picks them up like any built-in. Keep in sync with utils/generate_colorbars.py,
+# which registers the same colormaps for the Display panel's preview PNGs.
+#
+# "mesh": red -> orange -> yellow -> green, the same stops and order as the
+# Meshtastic Apple app's SNR gauge (LoRaSignalStrength.swift's
+# `Gradient(colors: [.red, .orange, .yellow, .green])`), so low signal reads
+# red and strong signal reads green, consistent with that app's UI.
+_CUSTOM_COLORMAPS = {
+    "mesh": ["#FF3B30", "#FF9500", "#FFCC00", "#34C759"],
+}
+for _name, _colors in _CUSTOM_COLORMAPS.items():
+    matplotlib.colormaps.register(LinearSegmentedColormap.from_list(_name, _colors, N=256), name=_name)
+
 # Keep in sync with the options in src/components/Display.vue.
-COLORMAPS = ["plasma", "CMRmap", "cool", "viridis", "turbo", "jet"]
+COLORMAPS = ["plasma", "CMRmap", "cool", "viridis", "turbo", "jet", "mesh"]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "src", "render", "colormaps.ts")

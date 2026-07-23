@@ -10,9 +10,24 @@ Args:
     filename (str): Name of the output file (e.g., "colorbar.png").
 """
 
+import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import argparse
+
+# Custom colormaps not built into matplotlib, registered by name so they can be
+# passed like any other `colormap` argument below.
+#
+# "mesh": red -> orange -> yellow -> green, the same stops and order as the
+# Meshtastic Apple app's SNR gauge (LoRaSignalStrength.swift's
+# `Gradient(colors: [.red, .orange, .yellow, .green])`), so low signal reads
+# red and strong signal reads green, consistent with that app's UI.
+_CUSTOM_COLORMAPS = {
+    "mesh": ["#FF3B30", "#FF9500", "#FFCC00", "#34C759"],
+}
+for _name, _colors in _CUSTOM_COLORMAPS.items():
+    matplotlib.colormaps.register(LinearSegmentedColormap.from_list(_name, _colors, N=256), name=_name)
 
 def export_colormap(colormap, dimensions, filename):
     try:
