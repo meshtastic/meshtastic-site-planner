@@ -38,7 +38,7 @@
           <option value="cool">Cool</option>
           <option value="turbo">Turbo</option>
           <option value="jet">Jet</option>
-          <option value="mesh">Meshtastic SNR</option>
+          <option value="mesh">Mesh</option>
         </select>
       </div>
       <div>
