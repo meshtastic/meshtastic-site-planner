@@ -1,6 +1,12 @@
-/* MapLibre basemaps. Same raster providers the Leaflet version used (CARTO
- * retina + Esri hybrids), defined as plain raster-source specs so they can
- * be swapped IN PLACE rather than via setStyle().
+/* MapLibre basemaps: keyless raster sources, defined as plain raster-source
+ * specs so they can be swapped IN PLACE rather than via setStyle().
+ *
+ * Every basemap here must render without an API key. CARTO withdrew keyless
+ * access to basemaps.cartocdn.com and now paints "API KEY REQUIRED" into the
+ * tile itself, so the three CARTO styles this file used to serve (Dark,
+ * Streets, Light) returned HTTP 200 and a defaced image — including the
+ * default (#77). Esri's Canvas services replace them from a provider the
+ * file already depends on for Topographic and Satellite.
  *
  * Swapping the whole style (map.setStyle) tears down and rebuilds all GL
  * resources; in practice that left raster basemaps failing to re-fetch
@@ -10,8 +16,8 @@
 
 import type { RasterSourceSpecification, StyleSpecification } from 'maplibre-gl';
 
-const CARTO_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const ESRI_CANVAS_ATTR =
+  'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS User Community';
 const ESRI_IMG_ATTR =
   'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics';
 const ESRI_TOPO_ATTR =
@@ -23,12 +29,6 @@ const STADIA_ATTR =
 // API key (or a domain allowlisted in the Stadia dashboard). Set
 // VITE_STADIA_API_KEY at build time to embed a key.
 const STADIA_KEY = import.meta.env.VITE_STADIA_API_KEY;
-
-function cartoTiles(style: string): string[] {
-  return ['a', 'b', 'c', 'd'].map(
-    (s) => `https://${s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}@2x.png`
-  );
-}
 
 function esriTiles(service: string): string[] {
   return [
@@ -50,9 +50,18 @@ export interface BasemapLayerSpec {
 }
 
 export const BASEMAPS: Record<string, BasemapLayerSpec[]> = {
-  Dark: [{ source: raster(cartoTiles('dark_all'), 512, CARTO_ATTR) }],
-  Streets: [{ source: raster(cartoTiles('rastertiles/voyager'), 512, CARTO_ATTR) }],
-  Light: [{ source: raster(cartoTiles('light_all'), 512, CARTO_ATTR) }],
+  // Esri's Canvas services are split base + reference (labels), so each is
+  // stacked the way Satellite already stacks imagery + boundaries below.
+  Dark: [
+    { source: raster(esriTiles('Canvas/World_Dark_Gray_Base'), 256, ESRI_CANVAS_ATTR, 19) },
+    { source: raster(esriTiles('Canvas/World_Dark_Gray_Reference'), 256, 'Labels &copy; Esri', 19) },
+  ],
+  Light: [
+    { source: raster(esriTiles('Canvas/World_Light_Gray_Base'), 256, ESRI_CANVAS_ATTR, 19) },
+    { source: raster(esriTiles('Canvas/World_Light_Gray_Reference'), 256, 'Labels &copy; Esri', 19) },
+  ],
+  // Replaces CARTO Voyager: the labelled street map for finding an address.
+  Streets: [{ source: raster(esriTiles('World_Street_Map'), 256, ESRI_CANVAS_ATTR, 19) }],
   // Shaded-relief terrain (Stadia Stamen): keyless on localhost, needs a
   // key/domain allowlist in production. The no-key "Topographic" below is
   // the always-available terrain fallback.
@@ -74,7 +83,9 @@ function raster(
   return { type: 'raster', tiles, tileSize, attribution, ...(maxzoom ? { maxzoom } : {}) };
 }
 
-export const DEFAULT_BASEMAP = 'Dark';
+/* Topographic, not a canvas style: a site planner is read against terrain,
+ * and this is the one basemap that needs no key and shows relief. */
+export const DEFAULT_BASEMAP = 'Topographic';
 
 /** Stable id prefix for basemap sources/layers so they can be found+removed. */
 export const BASEMAP_PREFIX = 'basemap-';
