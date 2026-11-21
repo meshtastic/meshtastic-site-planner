@@ -93,7 +93,9 @@ One-time setup: in the repo's **Settings → Pages**, set **Source** to **GitHub
 
 To serve it at `site.meshtastic.org`: add a `public/CNAME` file containing `site.meshtastic.org`, then point that DNS record (CNAME → `meshtastic.github.io`) when you're ready to cut over. Until then it's reachable at the default project URL.
 
-Alternatively, `docker compose up --build` builds the same `dist/` into an nginx container (the previous self-hosted setup).
+Alternatively, `docker build -t meshtastic-site-planner .` builds the same `dist/` into an nginx container.
+
+The legacy Compose stack adds a separate internet-facing `nginxproxy/nginx-proxy` container. Updating the app image does not update that proxy, which enables HTTP/2 by default. The Compose stack refuses to start without an explicit `SITE_PLANNER_NGINX_PROXY_IMAGE` value. Set it to a vetted, compatible image pinned by digest (for example, an image reference in the form `repository@sha256:<verified-digest>`), not a mutable tag. Verify that the exact digest includes nginx 1.30.7 or later in the 1.30 stable series, nginx 1.31.9 or later, or equivalent vendor security backports, and then run `docker compose up --build`. See the [NGINX security advisories](https://nginx.org/en/security_advisories.html).
 
 ### The coverage engine
 
