@@ -14,7 +14,7 @@ services:
       - app-network
 
   nginx-proxy:
-    image: nginxproxy/nginx-proxy
+    image: "${SITE_PLANNER_NGINX_PROXY_IMAGE:?Set SITE_PLANNER_NGINX_PROXY_IMAGE to a security-verified nginx-proxy image}"
     container_name: nginx-proxy
     ports:
       - 80:80
