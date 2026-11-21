@@ -95,7 +95,7 @@ To serve it at `site.meshtastic.org`: add a `public/CNAME` file containing `site
 
 Alternatively, `docker build -t meshtastic-site-planner .` builds the same `dist/` into an nginx container.
 
-The legacy Compose stack adds a separate internet-facing `nginxproxy/nginx-proxy` container. Updating the app image does not update that proxy, which enables HTTP/2 by default. The Compose stack refuses to start without an explicit `SITE_PLANNER_NGINX_PROXY_IMAGE` value. Set it to a vetted compatible image reference, preferably pinned by digest, and then run `docker compose up --build`. Before exposing the stack, verify that the image includes nginx 1.30.7 or later in the 1.30 stable series, nginx 1.31.9 or later, or equivalent vendor security backports. See the [NGINX security advisories](https://nginx.org/en/security_advisories.html).
+The legacy Compose stack adds a separate internet-facing `nginxproxy/nginx-proxy` container. Updating the app image does not update that proxy, which enables HTTP/2 by default. The Compose stack refuses to start without an explicit `SITE_PLANNER_NGINX_PROXY_IMAGE` value. Set it to a vetted, compatible image pinned by digest (for example, an image reference in the form `repository@sha256:<verified-digest>`), not a mutable tag. Verify that the exact digest includes nginx 1.30.7 or later in the 1.30 stable series, nginx 1.31.9 or later, or equivalent vendor security backports, and then run `docker compose up --build`. See the [NGINX security advisories](https://nginx.org/en/security_advisories.html).
 
 ### The coverage engine
 
